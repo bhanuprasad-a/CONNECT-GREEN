@@ -1,0 +1,158 @@
+# CONNECT GREEN - Comprehensive To-Do List
+
+This document breaks down the development of the **CONNECT GREEN** platform into step-by-step actionable tasks, derived comprehensively from the PRD, Tech Stack, and Design documents.
+
+---
+
+## Phase 1: Project Initialization & Setup
+**Goal:** Initialize the MERN stack environments, install dependencies, and configure essential tools.
+
+- [ ] **1.1 Global Setup**
+  - [ ] Initialize Git repository (`git init`).
+  - [ ] Create root `README.md` and `.gitignore` (ignoring `node_modules`, `.env`).
+- [ ] **1.2 Backend Setup (`/server`)**
+  - [ ] Initialize Node.js project (`npm init -y`).
+  - [ ] Install dependencies: `express`, `mongoose`, `jsonwebtoken`, `bcryptjs`, `cors`, `dotenv`, `multer`, `cloudinary`, `nodemailer`.
+  - [ ] Install dev dependencies: `nodemon`.
+  - [ ] Create folder structure: `/config`, `/controllers`, `/middleware`, `/models`, `/routes`.
+  - [ ] Create `server.js` (entry point) and configure basic Express server with CORS and JSON parsing.
+  - [ ] Create `.env` file (MONGO_URI, JWT_SECRET, PORT, CLOUDINARY details).
+  - [ ] Set up MongoDB connection (`/config/db.js`) using Mongoose.
+- [ ] **1.3 Frontend Setup (`/client`)**
+  - [ ] Initialize React app using Vite (`npm create vite@latest client -- --template react`).
+  - [ ] Install dependencies: `axios`, `react-router-dom`, `recharts`, `framer-motion`, `lucide-react`, `@react-google-maps/api`, `react-hot-toast`.
+  - [ ] Install and initialize Tailwind CSS (`npm install -D tailwindcss postcss autoprefixer`, `npx tailwindcss init -p`).
+  - [ ] Configure `tailwind.config.js` with all 9 CONNECT GREEN colors (Dark BG `#0B1A10`, Deep Card `#0D2818`, Primary Green `#1A6B30`, Neon Green `#22C55E`, etc.) and fonts (`Inter`, `Space Grotesk`).
+  - [ ] Create folder structure: `/assets`, `/components`, `/context`, `/pages`, `/api`.
+
+---
+
+## Phase 2: Database Schemas (Backend)
+**Goal:** Define the exact data structures needed based on the Tech Stack spec.
+
+- [ ] **2.1 User Model (`User.js`)**
+  - [ ] Fields: `name`, `email`, `password` (hashed), `role` (enum: tourist, business, siteManager, admin), `greenPoints`, `createdAt`.
+- [ ] **2.2 Business Model (`Business.js`)**
+  - [ ] Fields: `owner` (ref User), `name`, `category` (hotel, restaurant, transport, activity), `location`, `description`, `image`, `badgeStatus` (none, pending, bronze, silver, gold, platinum), `isVerified`, `avgRating`.
+- [ ] **2.3 Trip Model (`Trip.js`)**
+  - [ ] Fields: `user` (ref User), `destination`, `startDate`, `endDate`, `selectedBusinesses` (array ref Business), `carbonScore`, `carbonSaved`.
+- [ ] **2.4 Nature Site Model (`NatureSite.js`)**
+  - [ ] Fields: `manager` (ref User), `name`, `location`, `maxCapacity`, `currentVisitors`, `status` (green, yellow, red), `image`.
+- [ ] **2.5 Review Model (`Review.js`)**
+  - [ ] Fields: `user` (ref User), `business` (ref Business), `rating` (1-5), `comment`, `createdAt`.
+
+---
+
+## Phase 3: API & Backend Logistics
+**Goal:** Build and secure the REST API routes. Make sure to test all endpoints using Postman.
+
+- [ ] **3.1 Authentication & Authorization**
+  - [ ] Create `authController.js` logic (Register, Login, GetMe).
+  - [ ] Implement bcrypt password hashing on register.
+  - [ ] Implement JWT token generation on login.
+  - [ ] Create `authMiddleware.js` to protect private routes.
+  - [ ] Set up `/api/auth` routes (`authRoutes.js`).
+- [ ] **3.2 Business & Badge APIs**
+  - [ ] Create `businessController.js` (GetAll, GetOne, Create, Update, Delete, UpdateBadgeStatus).
+  - [ ] Configure role-based checks (Admin for badge updates, Owner for business updates).
+  - [ ] Set up `/api/businesses` routes (`businessRoutes.js`).
+- [ ] **3.3 Trip Planner APIs**
+  - [ ] Create `tripController.js` (GetAllByUser, CreateTrip, GetTripDetails, DeleteTrip).
+  - [ ] Implement carbon calculation logic on the backend for saving score.
+  - [ ] Set up `/api/trips` routes (`tripRoutes.js`).
+- [ ] **3.4 Nature Sites APIs**
+  - [ ] Create `siteController.js` (GetAll, CreateSite, UpdateVisitorCount).
+  - [ ] Implement logic to dynamically update `status` (green/yellow/red) when modifying `currentVisitors`.
+  - [ ] Set up `/api/sites` routes (`siteRoutes.js`).
+- [ ] **3.5 Review APIs**
+  - [ ] Create `reviewController.js` (GetByBusiness, CreateReview, DeleteReview).
+  - [ ] Add Mongoose middleware to update the Business `avgRating` when a review is added/removed.
+  - [ ] Set up `/api/reviews` routes (`reviewRoutes.js`).
+
+---
+
+## Phase 4: Frontend Foundations
+**Goal:** Implement the design system, state management, and base layouts.
+
+- [ ] **4.1 Architecture & State**
+  - [ ] Set up `AuthContext.js` to handle global user login state and roles.
+  - [ ] Configure `axios` instance for API calls (interceptors for JWT auto-injection).
+  - [ ] Setup React Router DOM in `App.jsx`.
+- [ ] **4.2 Global UI Components**
+  - [ ] **Navbar:** Implement dark (#0B1A10) background, logo, links, Mobile hamburger, dynamic Login/Profile buttons based on AuthContext. Add frosted blur on scroll.
+  - [ ] **Footer:** 4-column layout, dark background, neon green top border.
+  - [ ] **Buttons:** Create reusable `PrimaryButton` (neon solid), `SecondaryButton` (outlined green), `GhostButton` (text).
+  - [ ] **Forms:** Reusable `InputField` with focus states (neon green border).
+
+---
+
+## Phase 5: Feature Implementation (UI + Integration)
+**Goal:** Build individual features piece by piece, perfectly matching the design specs.
+
+### Feature 1: Landing Page (UI Construction)
+- [ ] Build **Hero Section:** Dark bg, 55/45 split, pill tag, Space Grotesk H1, two CTAs, Stats bar. Add 3D/Lottie/Image graphic to the right with radial green glow.
+- [ ] Build **Features Section:** Light mint bg, 3-column grid, 6 cards with Lucide icons. Focus on hover effects (neon border glow).
+- [ ] Build **How It Works Section:** 3-step numbered timeline with connecting dashed lines.
+- [ ] Build **Site Capacity Showcase:** Dark bg, text left, UI widget mock right (Traffic light).
+- [ ] Build **Data / Footprint Tracker Showcase:** Large number ring (Recharts) against a clean background.
+- [ ] Build **Testimonials & Final CTA Section.**
+
+### Feature 2: User Authentication & Profiles
+- [ ] Build **Login/Register Page:** Centered card, dark background, animated form switching.
+- [ ] Add role selection on signup (Tourist, Business, Site Manager).
+- [ ] Wire forms to Context and API -> Redirect to Dashboard on success.
+- [ ] Implement `react-hot-toast` for success/error flash messages.
+
+### Feature 3: Green Trip Planner
+- [ ] Implement Layout: 35% Search panel & filters (left), 65% Google Maps (right).
+- [ ] Integrate `@react-google-maps/api` to show map and plot destinations.
+- [ ] Build step-by-step UI to select destination -> select eco-hotels -> select eco-transport -> food choices.
+- [ ] Integrate dynamic **Carbon Meter Widget** fixed at bottom right tracking live CO2 based on selections.
+- [ ] Wire UI to `POST /api/trips` to save the planned trip.
+
+### Feature 4: Business Directory & Green Badges
+- [ ] Build **Businesses Page:** Filter bar at top (search, category, badge level).
+- [ ] Create reusable `BusinessCard` component (Image, info, Badge Icon).
+- [ ] Implement Badge UI components (Bronze, Silver, Gold, Platinum) with unique colors and glows.
+- [ ] Wire to `GET /api/businesses` to populate grid.
+- [ ] (Role Feature) Allow Business users a form to upload images (Cloundinary/Multer) and apply for badges via API.
+- [ ] (Admin Feature) Admin panel to read pending applications and `PUT` badge statuses.
+
+### Feature 5: Nature Site Capacity Monitor
+- [ ] Build **Nature Sites Page:** Search map toggle.
+- [ ] Create `SiteCard` component displaying location, max capacity, and `TrafficLightWidget`.
+- [ ] Implement `TrafficLightWidget` (Green=Safe, Yellow=Busy, Red=Full with pulsing animation on current state).
+- [ ] (Manager Feature) Simple dashboard widget for site managers to manually adjust live visitor counts via `PUT /api/sites/:id/visitors`.
+
+### Feature 6: Tourist Dashboard & Carbon Ring
+- [ ] Build **Dashboard Interface:** Top welcome header covering user Stats.
+- [ ] Build 3 top Stat Cards (Trips Planned, CO2 Saved, Points).
+- [ ] Implement large Animated Carbon Progress Ring using `recharts`.
+- [ ] Build Trip History Table/Grid underneath showing past trips and saved carbon data (`GET /api/trips`).
+
+### Feature 7: Directory Details & Reviews
+- [ ] Build isolated **Business Details Page**.
+- [ ] Create `ReviewForm` allowing logged-in tourists to rate 1-5 stars.
+- [ ] Create `StarRating` and `ReviewList` components to display historical reviews.
+
+---
+
+## Phase 6: Final Polish & Deployment
+**Goal:** Refine the user experience, animate smoothly, and put the application live.
+
+- [ ] **Animations & Interactivity**
+  - [ ] Implement `framer-motion` page transition animations.
+  - [ ] Add scroll-reveal effects to cards in the Features and Directory sections.
+- [ ] **Responsiveness Audit**
+  - [ ] Test Navigation toggle on mobile screens.
+  - [ ] Verify Hero stack on tablets.
+  - [ ] Ensure Trip planner map handles full width on small devices.
+- [ ] **Final QA & Testing**
+  - [ ] Check API rate limits and add error handling fallbacks in UI.
+  - [ ] Run backend using `nodemon` and test endpoints locally.
+  - [ ] Confirm image aspect ratios and upload checks.
+- [ ] **Deployment**
+  - [ ] Deploy Database to **MongoDB Atlas**.
+  - [ ] Deploy Backend to **Render / Railway** (ensure Environment Variables are securely added).
+  - [ ] Deploy Frontend to **Vercel**.
+  - [ ] Perform live end-to-end trip planning test.
