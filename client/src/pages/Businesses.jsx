@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { BadgeCheck, Star, MapPin, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -21,7 +21,7 @@ const Businesses = () => {
     useEffect(() => {
         const fetchBusinesses = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/businesses');
+                const res = await api.get('/businesses');
                 // Use live data if available, else mock
                 setBusinesses(res.data.length > 0 ? res.data : MOCK_DATA);
             } catch (error) {
@@ -131,7 +131,7 @@ const Businesses = () => {
                             {filteredBusinesses.map(biz => (
                                 <div key={biz._id} className="bg-deepCard border border-stone-800 rounded-xl overflow-hidden hover:border-neonGreen/50 transition-all hover:shadow-[0_0_25px_rgba(34,197,94,0.1)] group flex flex-col h-full">
                                     <div className="h-48 relative overflow-hidden">
-                                        <img src={biz.image || 'https://via.placeholder.com/500x300?text=No+Image'} alt={biz.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                        <img src={biz.image ? (biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image) : 'https://via.placeholder.com/500x300?text=No+Image'} alt={biz.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                         <div className="absolute top-3 right-3 bg-darkBg/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-stone-700 shadow-xl">
                                             <BadgeCheck fill={getBadgeColor(biz.badgeStatus)} className="text-darkBg" size={18} />
                                             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: getBadgeColor(biz.badgeStatus) }}>

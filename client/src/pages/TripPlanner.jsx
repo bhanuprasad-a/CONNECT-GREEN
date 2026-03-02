@@ -1,18 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import api from '../api/axios';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { Leaf, MapPin, Calculator, Search, Calendar, BadgeCheck, Utensils, Hotel, Bus, Route, Map as MapIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const MOCK_BUSINESSES = [
-    { id: 1, name: 'EcoLodge Stay', lat: 40.7128, lng: -74.0060, type: 'hotel', badge: 'Gold', co2Save: 45 },
-    { id: 2, name: 'Organic Vegan Bites', lat: 40.7158, lng: -74.0080, type: 'restaurant', badge: 'Silver', co2Save: 15 },
-    { id: 3, name: 'Green Way EVs', lat: 40.7108, lng: -74.0040, type: 'transport', badge: 'Platinum', co2Save: 80 }
-];
 
-const MOCK_NATURE_SITES = [
-    { id: 4, name: 'Central Park Conservatory', lat: 40.7829, lng: -73.9654, status: 'yellow' },
-    { id: 5, name: 'Riverside Walk', lat: 40.7950, lng: -73.9740, status: 'green' }
-];
 
 const center = {
     lat: 40.7128,
@@ -35,8 +27,27 @@ const mapOptions = {
 };
 
 const TripPlanner = () => {
-    const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "AIzaSyClD3fu-uAagwIQl5WuL5t2_Dw8R4gFA3M"; // Ideally loaded from env
+    const [businesses, setBusinesses] = useState([]);
+    const [natureSites, setNatureSites] = useState([]);
+    const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
     const hasValidKey = Boolean(API_KEY && API_KEY.trim() !== "");
+
+    useEffect(() => {
+        const fetchMapData = async () => {
+            try {
+                const businessRes = await api.get('/businesses');
+                const sitesRes = await api.get('/sites');
+
+                if (businessRes.data) setBusinesses(businessRes.data);
+                if (sitesRes.data) setNatureSites(sitesRes.data);
+            } catch (error) {
+                console.error("Error fetching map data:", error);
+                toast.error("Failed to load live map locations.");
+            }
+        };
+
+        fetchMapData();
+    }, []);
 
     const [map, setMap] = useState(null);
     const [origin, setOrigin] = useState('');
@@ -155,8 +166,8 @@ const TripPlanner = () => {
                             <div className="space-y-4 pt-4 border-t border-stone-800">
                                 <h3 className="text-stone-300 font-semibold mb-2">Recommended in Area</h3>
 
-                                {MOCK_BUSINESSES.map(biz => (
-                                    <div key={biz.id} className="bg-darkBg p-4 rounded-lg border border-stone-800 flex justify-between items-center hover:border-neonGreen/50 transition-colors">
+                                {businesses.map(biz => (
+                                    <div key={biz._id || biz.id} className="bg-darkBg p-4 rounded-lg border border-stone-800 flex justify-between items-center hover:border-neonGreen/50 transition-colors">
                                         <div>
                                             <h4 className="font-semibold text-white">{biz.name}</h4>
                                             <div className="flex items-center gap-2 mt-1">
@@ -166,7 +177,7 @@ const TripPlanner = () => {
                                         </div>
                                         <button
                                             onClick={() => toggleItem(biz)}
-                                            className={`p-2 rounded-full transition-colors ${selectedItems.find(i => i.id === biz.id) ? 'bg-neonGreen text-darkBg' : 'bg-stone-800 text-neonGreen hover:bg-stone-700'}`}
+                                            className={`p-2 rounded-full transition-colors ${selectedItems.find(i => (i._id || i.id) === (biz._id || biz.id)) ? 'bg-neonGreen text-darkBg' : 'bg-stone-800 text-neonGreen hover:bg-stone-700'}`}
                                         >
                                             <Calculator size={18} />
                                         </button>
@@ -210,7 +221,7 @@ const TripPlanner = () => {
                                 ) : (
                                     <ul className="space-y-2">
                                         {selectedItems.map(item => (
-                                            <li key={item.id} className="flex justify-between items-center text-sm">
+                                            <li key={item._id || item.id} className="flex justify-between items-center text-sm">
                                                 <span className="text-stone-300">{item.name}</span>
                                                 <span className="text-neonGreen">-{item.co2Save} kg</span>
                                             </li>
@@ -256,30 +267,38 @@ const TripPlanner = () => {
                                 colorScheme={'DARK'}
                             >
                                 {/* Map overlay content indicating Nature Site traffic load */}
-                                {MOCK_NATURE_SITES.map(site => (
-                                    <AdvancedMarker key={site.id} position={{ lat: site.lat, lng: site.lng }}>
-                                        <div className={`flex items-center gap-2 bg-darkBg border p-2 rounded-full shadow-lg ${site.status === 'green' ? 'border-neonGreen' : 'border-yellow-500'}`}>
-                                            <div className={`w-3 h-3 rounded-full animate-pulse ${site.status === 'green' ? 'bg-neonGreen shadow-[0_0_8px_#22C55E]' : 'bg-yellow-500 shadow-[0_0_8px_#eab308]'}`}></div>
-                                            <span className="text-xs font-bold text-white pr-2">{site.name}</span>
-                                        </div>
-                                    </AdvancedMarker>
-                                ))}
+                                {natureSites.map(site => {
+                                    const lat = site.lat || site.location?.coordinates[1] || 0;
+                                    const lng = site.lng || site.location?.coordinates[0] || 0;
+                                    return (
+                                        <AdvancedMarker key={site._id || site.id} position={{ lat, lng }}>
+                                            <div className={`flex items-center gap-2 bg-darkBg border p-2 rounded-full shadow-lg ${site.status === 'green' ? 'border-neonGreen' : 'border-yellow-500'}`}>
+                                                <div className={`w-3 h-3 rounded-full animate-pulse ${site.status === 'green' ? 'bg-neonGreen shadow-[0_0_8px_#22C55E]' : 'bg-yellow-500 shadow-[0_0_8px_#eab308]'}`}></div>
+                                                <span className="text-xs font-bold text-white pr-2">{site.name}</span>
+                                            </div>
+                                        </AdvancedMarker>
+                                    );
+                                })}
 
                                 {/* Interactive Pins for Businesses */}
-                                {MOCK_BUSINESSES.map(biz => (
-                                    <AdvancedMarker key={biz.id} position={{ lat: biz.lat, lng: biz.lng }}>
-                                        <div onClick={() => toggleItem(biz)} className="cursor-pointer group relative">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white border-2 border-darkBg ${selectedItems.find(i => i.id === biz.id) ? 'bg-neonGreen' : 'bg-stone-600 group-hover:bg-primaryGreen'} transition-all shadow-xl`}>
-                                                {biz.type === 'hotel' ? <Hotel size={18} /> : biz.type === 'transport' ? <Bus size={18} /> : <Utensils size={18} />}
-                                            </div>
+                                {businesses.map(biz => {
+                                    const lat = biz.lat || biz.location?.coordinates[1] || 0;
+                                    const lng = biz.lng || biz.location?.coordinates[0] || 0;
+                                    return (
+                                        <AdvancedMarker key={biz._id || biz.id} position={{ lat, lng }}>
+                                            <div onClick={() => toggleItem(biz)} className="cursor-pointer group relative">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white border-2 border-darkBg ${selectedItems.find(i => (i._id || i.id) === (biz._id || biz.id)) ? 'bg-neonGreen' : 'bg-stone-600 group-hover:bg-primaryGreen'} transition-all shadow-xl`}>
+                                                    {biz.type === 'hotel' ? <Hotel size={18} /> : biz.type === 'transport' ? <Bus size={18} /> : <Utensils size={18} />}
+                                                </div>
 
-                                            {/* Tooltip on hover */}
-                                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-deepCard text-white text-xs whitespace-nowrap px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-stone-700 font-semibold z-50">
-                                                {biz.name} <span className="text-neonGreen block mt-1">-{biz.co2Save} kg CO2</span>
+                                                {/* Tooltip on hover */}
+                                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-deepCard text-white text-xs whitespace-nowrap px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-stone-700 font-semibold z-50">
+                                                    {biz.name} <span className="text-neonGreen block mt-1">-{biz.co2Save} kg CO2</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </AdvancedMarker>
-                                ))}
+                                        </AdvancedMarker>
+                                    );
+                                })}
                             </Map>
                         </div>
                     </APIProvider>

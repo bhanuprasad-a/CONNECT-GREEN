@@ -11,9 +11,10 @@ const getSites = async (req, res) => {
 
 const createSite = async (req, res) => {
     try {
+        const managerId = (req.user.role === 'admin' && req.body.manager) ? req.body.manager : req.user._id;
         const site = new NatureSite({
             ...req.body,
-            manager: req.user._id
+            manager: managerId
         });
         const createdSite = await site.save();
         res.status(201).json(createdSite);

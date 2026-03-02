@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import axios from 'axios';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Camera, Send, ShieldCheck, CheckCircle, XCircle, TreePine, Map, FileText } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -42,21 +42,40 @@ const Dashboard = () => {
 
 /* --- TOURIST VIEW (Carbon Tracking & History) --- */
 const TouristView = () => {
-    // Mock user history data
-    const chartData = [
+    const [chartData, setChartData] = useState([
         { month: 'Aug', offset: 12 },
         { month: 'Sep', offset: 25 },
         { month: 'Oct', offset: 18 },
         { month: 'Nov', offset: 45 },
         { month: 'Dec', offset: 60 },
         { month: 'Jan', offset: 85 }
-    ];
+    ]);
+    const [pastTrips, setPastTrips] = useState([]);
 
-    const pastTrips = [
-        { id: 1, destination: 'New York Eco-Tour', date: 'Jan 15, 2026', co2Saved: 25, status: 'Completed' },
-        { id: 2, destination: 'London Green Weekend', date: 'Dec 02, 2025', co2Saved: 60, status: 'Completed' },
-        { id: 3, destination: 'Bali Coral Rescue', date: 'Nov 10, 2025', co2Saved: 45, status: 'Completed' }
-    ];
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await api.get('/trips', {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                if (res.data) {
+                    setPastTrips(res.data.trips || res.data);
+                    if (res.data.chartData) {
+                        setChartData(res.data.chartData);
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching trip history:", error);
+                toast.error("Could not load your trip history.");
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -131,14 +150,14 @@ const TouristView = () => {
 
                     <div className="space-y-4">
                         {pastTrips.map(trip => (
-                            <div key={trip.id} className="p-4 bg-darkBg rounded-lg border border-stone-800 hover:border-neonGreen/30 transition-colors">
+                            <div key={trip._id || trip.id} className="p-4 bg-darkBg rounded-lg border border-stone-800 hover:border-neonGreen/30 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
-                                    <h4 className="text-sm font-bold text-white">{trip.destination}</h4>
-                                    <span className="text-xs text-neonGreen bg-neonGreen/10 px-2 py-0.5 rounded font-semibold">+{trip.co2Saved}kg</span>
+                                    <h4 className="text-sm font-bold text-white">{trip.destination || 'Eco-Tour'}</h4>
+                                    <span className="text-xs text-neonGreen bg-neonGreen/10 px-2 py-0.5 rounded font-semibold">+{trip.co2Saved || 0}kg</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-stone-500">{trip.date}</span>
-                                    <span className="text-stone-400 italic">{trip.status}</span>
+                                    <span className="text-stone-500">{new Date(trip.date || Date.now()).toLocaleDateString() || trip.date}</span>
+                                    <span className="text-stone-400 italic">{trip.status || 'Completed'}</span>
                                 </div>
                             </div>
                         ))}
@@ -163,7 +182,7 @@ const BusinessView = () => {
         const fetchMyBiz = async () => {
             try {
                 // Fetch and filter for businesses owned by logged-in user
-                const res = await axios.get('http://localhost:5000/api/businesses');
+                const res = await api.get('/businesses');
                 // The API currently returns all for generic GET. For production, create a dedicated GET /api/businesses/me route
                 // For now, if populated works, we find local ones (Assumes owner object has _id populated, or just id string)
                 // We'll trust the user context for mocking the fetch here:
@@ -189,8 +208,10 @@ const BusinessView = () => {
         if (file) data.append('image', file); // Multer Cloudinary catches 'image'
 
         try {
-            await axios.post('http://localhost:5000/api/businesses', data, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            await api.post('/businesses', data, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
             });
             toast.success("Business submitted for Green Verification!");
             setFormData({ name: '', category: 'hotel', location: '', description: '' });
@@ -252,12 +273,13 @@ const BusinessView = () => {
 /* --- ADMIN VIEW (Approve pending applications & apply badges) --- */
 const AdminView = () => {
     const [pending, setPending] = useState([]);
+    const [newSite, setNewSite] = useState({ mgrName: '', mgrEmail: '', mgrPassword: '', siteName: '', siteLocation: '', maxCapacity: '' });
 
     // Auto-fetch logic for pending businesses (Mocking standard GET response)
     useEffect(() => {
         const fetchPending = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/businesses');
+                const res = await api.get('/businesses');
                 setPending(res.data.filter(b => b.badgeStatus === 'pending' || b.badgeStatus === 'none'));
             } catch (err) {
                 console.error("Admin view failed", err);
@@ -268,7 +290,7 @@ const AdminView = () => {
 
     const handleApproval = async (id, status) => {
         try {
-            await axios.put(`http://localhost:5000/api/businesses/${id}/badge`, { badgeStatus: status, isVerified: true });
+            await api.put(`/businesses/${id}/badge`, { badgeStatus: status, isVerified: true });
             toast.success(`Business granted ${status} badge!`);
             setPending(pending.filter(b => b._id !== id)); // Remove from list instantly
         } catch (error) {
@@ -276,65 +298,126 @@ const AdminView = () => {
         }
     };
 
-    return (
-        <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
-            <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
-                <ShieldCheck className="text-neonGreen" /> Validation Queue
-            </h3>
+    const handleCreateSiteManager = async (e) => {
+        e.preventDefault();
+        try {
+            // 1. Create the Site Manager account
+            const registerRes = await api.post('/auth/register', {
+                name: newSite.mgrName,
+                email: newSite.mgrEmail,
+                password: newSite.mgrPassword,
+                role: 'siteManager'
+            });
 
-            {pending.length === 0 ? (
-                <div className="text-center py-12 text-stone-500">
-                    No pending business applications.
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-stone-700 text-stone-400 text-sm uppercase">
-                                <th className="py-3 px-4">Business Name</th>
-                                <th className="py-3 px-4">Category</th>
-                                <th className="py-3 px-4">Evidence</th>
-                                <th className="py-3 px-4">Verification Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {pending.map(biz => (
-                                <tr key={biz._id} className="border-b border-stone-800 hover:bg-darkBg transition-colors">
-                                    <td className="py-4 px-4">
-                                        <span className="text-white font-semibold block">{biz.name}</span>
-                                        <span className="text-xs text-stone-500">{biz.location}</span>
-                                    </td>
-                                    <td className="py-4 px-4 text-stone-300 capitalize">{biz.category}</td>
-                                    <td className="py-4 px-4">
-                                        {biz.image && biz.image !== 'no-photo.jpg' ? (
-                                            <a href={biz.image} target="_blank" rel="noreferrer" className="text-neonGreen hover:underline text-sm">View Image</a>
-                                        ) : (
-                                            <span className="text-xs text-stone-600">None Provided</span>
-                                        )}
-                                    </td>
-                                    <td className="py-4 px-4 flex items-center gap-2">
-                                        <select className="bg-darkBg text-xs text-white border border-stone-700 rounded px-2 py-1.5 focus:border-neonGreen outline-none"
-                                            onChange={(e) => {
-                                                if (e.target.value) handleApproval(biz._id, e.target.value);
-                                            }}
-                                            defaultValue=""
-                                        >
-                                            <option value="" disabled>Select Tier...</option>
-                                            <option value="bronze">Approve Bronze (-30% CO2)</option>
-                                            <option value="silver">Approve Silver (-50% CO2)</option>
-                                            <option value="gold">Approve Gold (-80% CO2)</option>
-                                            <option value="platinum">Approve Platinum (Zero Carbon)</option>
-                                        </select>
-                                        <button className="p-1.5 text-red-400 hover:bg-stone-800 rounded transition-colors" title="Reject & Delete">
-                                            <XCircle size={18} />
-                                        </button>
-                                    </td>
+            const managerId = registerRes.data._id;
+
+            // 2. Create the Nature Site assigned to them
+            await api.post('/sites', {
+                name: newSite.siteName,
+                location: newSite.siteLocation,
+                maxCapacity: parseInt(newSite.maxCapacity),
+                manager: managerId
+            }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+
+            toast.success("Site and Manager successfully registered!");
+            setNewSite({ mgrName: '', mgrEmail: '', mgrPassword: '', siteName: '', siteLocation: '', maxCapacity: '' });
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to create manager or site.");
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
+                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
+                    <ShieldCheck className="text-neonGreen" /> Validation Queue
+                </h3>
+
+                {pending.length === 0 ? (
+                    <div className="text-center py-12 text-stone-500">
+                        No pending business applications.
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-stone-700 text-stone-400 text-sm uppercase">
+                                    <th className="py-3 px-4">Business Name</th>
+                                    <th className="py-3 px-4">Category</th>
+                                    <th className="py-3 px-4">Evidence</th>
+                                    <th className="py-3 px-4">Verification Action</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                            </thead>
+                            <tbody>
+                                {pending.map(biz => (
+                                    <tr key={biz._id} className="border-b border-stone-800 hover:bg-darkBg transition-colors">
+                                        <td className="py-4 px-4">
+                                            <span className="text-white font-semibold block">{biz.name}</span>
+                                            <span className="text-xs text-stone-500">{biz.location}</span>
+                                        </td>
+                                        <td className="py-4 px-4 text-stone-300 capitalize">{biz.category}</td>
+                                        <td className="py-4 px-4">
+                                            {biz.image && biz.image !== 'no-photo.jpg' ? (
+                                                <a href={biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image} target="_blank" rel="noreferrer" className="text-neonGreen hover:underline text-sm">View Image</a>
+                                            ) : (
+                                                <span className="text-xs text-stone-600">None Provided</span>
+                                            )}
+                                        </td>
+                                        <td className="py-4 px-4 flex items-center gap-2">
+                                            <select className="bg-darkBg text-xs text-white border border-stone-700 rounded px-2 py-1.5 focus:border-neonGreen outline-none"
+                                                onChange={(e) => {
+                                                    if (e.target.value) handleApproval(biz._id, e.target.value);
+                                                }}
+                                                defaultValue=""
+                                            >
+                                                <option value="" disabled>Select Tier...</option>
+                                                <option value="bronze">Approve Bronze (-30% CO2)</option>
+                                                <option value="silver">Approve Silver (-50% CO2)</option>
+                                                <option value="gold">Approve Gold (-80% CO2)</option>
+                                                <option value="platinum">Approve Platinum (Zero Carbon)</option>
+                                            </select>
+                                            <button className="p-1.5 text-red-400 hover:bg-stone-800 rounded transition-colors" title="Reject & Delete">
+                                                <XCircle size={18} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+            {/* Create Conservation Site & Manager Form */}
+            <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
+                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
+                    <Map className="text-neonGreen" /> Register Nature Site & Manager
+                </h3>
+
+                <form onSubmit={handleCreateSiteManager} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                        <h4 className="text-sm uppercase text-stone-500 font-semibold mb-2">Manager Account</h4>
+                        <input type="text" placeholder="Manager Full Name" required value={newSite.mgrName} onChange={(e) => setNewSite({ ...newSite, mgrName: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                        <input type="email" placeholder="Manager Email" required value={newSite.mgrEmail} onChange={(e) => setNewSite({ ...newSite, mgrEmail: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                        <input type="password" placeholder="Temporary Password" required value={newSite.mgrPassword} onChange={(e) => setNewSite({ ...newSite, mgrPassword: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                    </div>
+
+                    <div className="space-y-4">
+                        <h4 className="text-sm uppercase text-stone-500 font-semibold mb-2">Conservation Site</h4>
+                        <input type="text" placeholder="Site Name (e.g. Emerald Coast)" required value={newSite.siteName} onChange={(e) => setNewSite({ ...newSite, siteName: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                        <input type="text" placeholder="Location" required value={newSite.siteLocation} onChange={(e) => setNewSite({ ...newSite, siteLocation: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                        <input type="number" placeholder="Daily Max Visitor Capacity" required value={newSite.maxCapacity} onChange={(e) => setNewSite({ ...newSite, maxCapacity: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                    </div>
+
+                    <div className="md:col-span-2 mt-4">
+                        <button type="submit" className="w-full py-3 bg-stone-800 text-white font-bold rounded flex justify-center items-center gap-2 hover:bg-neonGreen hover:text-darkBg transition-colors border border-stone-700 hover:border-transparent">
+                            <CheckCircle size={18} /> Create Account & Register Site
+                        </button>
+                        <p className="text-xs text-stone-500 text-center mt-3">The manager will be able to log in to dynamically update the live capacity of the created site.</p>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };
@@ -347,7 +430,7 @@ const SiteManagerView = () => {
         const fetchSites = async () => {
             try {
                 // Should be GET /api/sites/me, but fetching all for demonstration
-                const res = await axios.get('http://localhost:5000/api/sites');
+                const res = await api.get('/sites');
                 setSites(res.data);
             } catch (err) {
                 console.error("Site Manager view failed", err);
@@ -358,7 +441,7 @@ const SiteManagerView = () => {
 
     const handleUpdateCapacity = async (id, newCount) => {
         try {
-            await axios.put(`http://localhost:5000/api/sites/${id}/visitors`, { currentVisitors: newCount });
+            await api.put(`/sites/${id}/visitors`, { currentVisitors: newCount });
             toast.success("Visitor count successfully updated.");
 
             // Local state update

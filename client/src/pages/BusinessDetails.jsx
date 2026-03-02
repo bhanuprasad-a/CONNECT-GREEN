@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 import { MapPin, Star, BadgeCheck, ShieldCheck, ChevronLeft, Leaf, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -20,11 +20,11 @@ const BusinessDetails = () => {
         const fetchDetails = async () => {
             try {
                 // Fetch business
-                const bizRes = await axios.get(`http://localhost:5000/api/businesses/${id}`);
+                const bizRes = await api.get(`/businesses/${id}`);
                 setBusiness(bizRes.data);
 
                 // Fetch reviews
-                const revRes = await axios.get(`http://localhost:5000/api/reviews/${id}`);
+                const revRes = await api.get(`/reviews/${id}`);
                 setReviews(revRes.data);
             } catch (error) {
                 // Mock data fallback for demonstration if DB is empty
@@ -54,7 +54,7 @@ const BusinessDetails = () => {
     const submitReview = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/reviews', {
+            const res = await api.post('/reviews', {
                 businessId: id,
                 rating,
                 comment

@@ -1,9 +1,11 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import { Leaf } from 'lucide-react';
+import InputField from '../components/InputField';
+import PrimaryButton from '../components/PrimaryButton';
+import api from '../api/axios';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -14,7 +16,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+            const res = await api.post('/auth/login', { email, password });
             login(res.data, res.data.token);
             toast.success('Successfully logged in!');
             navigate('/dashboard');
@@ -48,43 +50,26 @@ const Login = () => {
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
                 <div className="bg-deepCard py-8 px-4 border border-stone-800 shadow-[0_0_30px_rgba(0,0,0,0.5)] sm:rounded-lg sm:px-10">
                     <form className="space-y-6" onSubmit={handleSubmit}>
-                        <div>
-                            <label className="block text-sm font-medium text-stone-300">
-                                Email address
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    type="email"
-                                    required
-                                    className="appearance-none block w-full px-3 py-2 border border-stone-700 rounded-md shadow-sm placeholder-stone-500 bg-darkBg text-white focus:outline-none focus:ring-neonGreen focus:border-neonGreen sm:text-sm"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                />
-                            </div>
-                        </div>
+                        <InputField
+                            label="Email address"
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+
+                        <InputField
+                            label="Password"
+                            type="password"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
 
                         <div>
-                            <label className="block text-sm font-medium text-stone-300">
-                                Password
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    type="password"
-                                    required
-                                    className="appearance-none block w-full px-3 py-2 border border-stone-700 rounded-md shadow-sm placeholder-stone-500 bg-darkBg text-white focus:outline-none focus:ring-neonGreen focus:border-neonGreen sm:text-sm"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <button
-                                type="submit"
-                                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-[0_0_15px_rgba(34,197,94,0.3)] text-sm font-medium text-darkBg bg-neonGreen hover:bg-accentGreen focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neonGreen focus:ring-offset-darkBg transition-all"
-                            >
+                            <PrimaryButton type="submit" className="w-full">
                                 Sign in
-                            </button>
+                            </PrimaryButton>
                         </div>
                     </form>
                 </div>

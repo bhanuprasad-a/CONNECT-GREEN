@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 import { MapPin, Users, Activity, Leaf, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -28,7 +28,7 @@ const SiteCard = ({ site }) => {
         <div className="bg-deepCard border border-stone-800 rounded-xl overflow-hidden shadow-sm hover:shadow-[0_0_30px_rgba(34,197,94,0.1)] transition-all flex flex-col md:flex-row h-full">
             {/* Image Section */}
             <div className="md:w-2/5 relative h-64 md:h-auto overflow-hidden">
-                <img src={site.image || 'https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?w=600'} alt={site.name} className="w-full h-full object-cover" />
+                <img src={site.image && site.image !== 'no-photo.jpg' ? (site.image.startsWith('/') ? 'http://localhost:5000' + site.image : site.image) : 'https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?w=600'} alt={site.name} className="w-full h-full object-cover" />
                 <div className="absolute top-3 left-3 bg-darkBg/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-stone-700">
                     <Leaf className="text-neonGreen" size={14} />
                     <span className="text-xs font-bold text-white uppercase tracking-wider">Verified Protected</span>
@@ -103,7 +103,7 @@ const NatureSites = () => {
     useEffect(() => {
         const fetchSites = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/sites');
+                const res = await api.get('/sites');
                 setSites(res.data.length > 0 ? res.data : MOCK_SITES);
             } catch (error) {
                 console.error("Failed to fetch sites, using mock", error);

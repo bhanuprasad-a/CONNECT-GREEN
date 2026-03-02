@@ -4,6 +4,9 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import { Leaf } from 'lucide-react';
+import InputField from '../components/InputField';
+import PrimaryButton from '../components/PrimaryButton';
+import api from '../api/axios'; // Make sure the path is correct
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -22,7 +25,7 @@ const Register = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+            const res = await api.post('/auth/register', formData);
             login(res.data, res.data.token);
             toast.success('Account created successfully!');
             navigate('/dashboard');
@@ -56,34 +59,37 @@ const Register = () => {
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
                 <div className="bg-deepCard py-8 px-4 border border-stone-800 shadow-[0_0_30px_rgba(0,0,0,0.5)] sm:rounded-lg sm:px-10">
                     <form className="space-y-6" onSubmit={handleSubmit}>
-                        <div>
-                            <label className="block text-sm font-medium text-stone-300">Full Name</label>
-                            <div className="mt-1">
-                                <input type="text" name="name" required value={name} onChange={onChange}
-                                    className="appearance-none block w-full px-3 py-2 border border-stone-700 rounded-md shadow-sm placeholder-stone-500 bg-darkBg text-white focus:outline-none focus:ring-neonGreen focus:border-neonGreen sm:text-sm" />
-                            </div>
-                        </div>
+                        <InputField
+                            label="Full Name"
+                            name="name"
+                            required
+                            value={name}
+                            onChange={onChange}
+                        />
 
-                        <div>
-                            <label className="block text-sm font-medium text-stone-300">Email address</label>
-                            <div className="mt-1">
-                                <input type="email" name="email" required value={email} onChange={onChange}
-                                    className="appearance-none block w-full px-3 py-2 border border-stone-700 rounded-md shadow-sm placeholder-stone-500 bg-darkBg text-white focus:outline-none focus:ring-neonGreen focus:border-neonGreen sm:text-sm" />
-                            </div>
-                        </div>
+                        <InputField
+                            label="Email address"
+                            type="email"
+                            name="email"
+                            required
+                            value={email}
+                            onChange={onChange}
+                        />
 
-                        <div>
-                            <label className="block text-sm font-medium text-stone-300">Password</label>
-                            <div className="mt-1">
-                                <input type="password" name="password" required value={password} onChange={onChange} minLength="6"
-                                    className="appearance-none block w-full px-3 py-2 border border-stone-700 rounded-md shadow-sm placeholder-stone-500 bg-darkBg text-white focus:outline-none focus:ring-neonGreen focus:border-neonGreen sm:text-sm" />
-                            </div>
-                        </div>
+                        <InputField
+                            label="Password"
+                            type="password"
+                            name="password"
+                            required
+                            minLength="6"
+                            value={password}
+                            onChange={onChange}
+                        />
 
                         <div>
                             <label className="block text-sm font-medium text-stone-300 mb-2">I am signing up as a:</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['tourist', 'business', 'siteManager'].map((r) => (
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                {['tourist', 'business', 'siteManager', 'admin'].map((r) => (
                                     <button
                                         key={r}
                                         type="button"
@@ -98,11 +104,9 @@ const Register = () => {
                         </div>
 
                         <div>
-                            <button type="submit"
-                                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-[0_0_15px_rgba(34,197,94,0.3)] text-sm font-medium text-darkBg bg-neonGreen hover:bg-accentGreen focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neonGreen focus:ring-offset-darkBg transition-all"
-                            >
+                            <PrimaryButton type="submit" className="w-full">
                                 Register Account
-                            </button>
+                            </PrimaryButton>
                         </div>
                     </form>
                 </div>

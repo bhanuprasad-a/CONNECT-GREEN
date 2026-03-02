@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { Leaf, MapPin, Search, Navigation, Recycle, Battery, Trash, Laptop, Clock, Phone, Map as MapIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import api from '../api/axios';
 
 const MOCK_CENTERS = [
     { id: 'm1', name: 'Downtown Eco Drop', lat: 40.7128, lng: -74.0060, acceptedWaste: ['plastic', 'glass', 'paper'], operatingHours: { open: '08:00', close: '18:00' }, isOpen: true, address: '123 Green Ave' },
@@ -46,7 +46,7 @@ const getWasteIcon = (type) => {
 };
 
 const RecyclingLocator = () => {
-    const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "AIzaSyClD3fu-uAagwIQl5WuL5t2_Dw8R4gFA3M";
+    const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
     const hasValidKey = Boolean(API_KEY && API_KEY.trim() !== "");
 
     const [centers, setCenters] = useState(MOCK_CENTERS);
@@ -62,7 +62,7 @@ const RecyclingLocator = () => {
         const fetchCenters = async () => {
             try {
                 setIsLoading(true);
-                const res = await axios.get('http://localhost:5000/api/recycling');
+                const res = await api.get('/recycling');
                 if (res.data && Array.isArray(res.data) && res.data.length > 0) {
                     setCenters(res.data);
                     setFilteredCenters(res.data);

@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 export const AuthContext = createContext();
 
@@ -13,10 +13,10 @@ export const AuthProvider = ({ children }) => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    // Set default axios header
-                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    // Set default api header
+                    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
                     // Attempt to fetch current user data using token
-                    const res = await axios.get('http://localhost:5000/api/auth/me');
+                    const res = await api.get('/auth/me');
                     setUser(res.data);
                 } catch (error) {
                     console.error("Token invalid or expired", error);
@@ -31,13 +31,13 @@ export const AuthProvider = ({ children }) => {
 
     const login = (userData, token) => {
         localStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(userData);
     };
 
     const logout = () => {
         localStorage.removeItem('token');
-        delete axios.defaults.headers.common['Authorization'];
+        delete api.defaults.headers.common['Authorization'];
         setUser(null);
     };
 

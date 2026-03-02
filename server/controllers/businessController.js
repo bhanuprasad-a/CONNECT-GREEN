@@ -24,8 +24,8 @@ const getBusinessById = async (req, res) => {
 
 const createBusiness = async (req, res) => {
     try {
-        // Extract image URL from Cloudinary if file was uploaded
-        const imageData = req.file ? { image: req.file.path } : {};
+        // Extract image URL from local Multer upload
+        const imageData = req.file ? { image: '/uploads/' + req.file.filename } : {};
 
         const business = new Business({
             ...req.body,
@@ -51,8 +51,8 @@ const updateBusiness = async (req, res) => {
             return res.status(401).json({ message: 'Not authorized to update this business' });
         }
 
-        // Extract image URL from Cloudinary if file was uploaded during edit
-        const imageData = req.file ? { image: req.file.path } : {};
+        // Extract image URL from local Multer upload if file was uploaded during edit
+        const imageData = req.file ? { image: '/uploads/' + req.file.filename } : {};
 
         business = await Business.findByIdAndUpdate(
             req.params.id,

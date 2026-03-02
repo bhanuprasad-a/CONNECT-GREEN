@@ -15,14 +15,19 @@ const recyclingRoutes = require('./routes/recyclingRoutes');
 dotenv.config();
 
 // Connect to Database
-// connectDB(); // Ensure .env is set before connecting
+connectDB();
 
 const app = express();
+
+const path = require('path');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve local static image files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
