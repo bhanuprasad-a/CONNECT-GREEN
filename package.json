@@ -1,9 +1,14 @@
 {
     "name": "connect-green-monolith",
     "version": "1.0.0",
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "scripts": {
-        "render-postinstall": "cd client && npm install --no-audit && cd ../server && npm install --no-audit",
-        "build": "cd client && npm run build",
-        "start": "cd server && npm start"
+        "install-client": "npm install --prefix client --no-audit --legacy-peer-deps",
+        "install-server": "npm install --prefix server --no-audit --legacy-peer-deps",
+        "build-client": "npm run build --prefix client",
+        "build": "npm run install-client && npm run install-server && npm run build-client",
+        "start": "npm start --prefix server"
     }
 }
