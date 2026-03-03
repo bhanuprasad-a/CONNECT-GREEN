@@ -1,0 +1,9 @@
+{
+    "name": "connect-green-monolith",
+    "version": "1.0.0",
+    "scripts": {
+        "render-postinstall": "cd client && npm install --no-audit && cd ../server && npm install --no-audit",
+        "build": "cd client && npm run build",
+        "start": "cd server && npm start"
+    }
+}

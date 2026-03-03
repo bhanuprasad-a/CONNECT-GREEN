@@ -15,7 +15,7 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="relative w-full z-50 border-b border-neonGreen/20 bg-darkBg py-4 shadow-sm">
+        <nav className="fixed top-0 left-0 w-full z-50 border-b border-white/5 bg-darkBg/80 backdrop-blur-md py-4 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center">
 
@@ -32,7 +32,8 @@ const Navbar = () => {
                         <Link to="/planner" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Trip Planner</Link>
                         <Link to="/businesses" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Businesses</Link>
                         <Link to="/sites" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Nature Sites</Link>
-                        <Link to="/recycling" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Recycling Locator</Link>
+                        <Link to="/offset" className="text-stone-300 hover:text-neonGreen transition-colors font-medium flex items-center gap-1"><Leaf size={14} className="text-neonGreen" /> Offset</Link>
+                        <Link to="/recycling" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Recycling</Link>
                         {/* Auth Buttons */}
                         {user ? (
                             <div className="flex items-center gap-4 ml-4">
@@ -70,6 +71,7 @@ const Navbar = () => {
                     <Link to="/planner" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-neonGreen text-lg">Trip Planner</Link>
                     <Link to="/businesses" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-neonGreen text-lg">Businesses</Link>
                     <Link to="/sites" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-neonGreen text-lg">Nature Sites</Link>
+                    <Link to="/offset" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-neonGreen text-lg flex items-center gap-1"><Leaf size={16} className="text-neonGreen" /> Carbon Offset</Link>
                     <Link to="/recycling" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-neonGreen text-lg">Recycle Map</Link>
                     <div className="w-4/5 h-px bg-neonGreen/20 my-2"></div>
                     {user ? (

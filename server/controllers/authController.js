@@ -10,11 +10,19 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role: requestedRole } = req.body;
 
         const userExists = await User.findOne({ email });
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
+        }
+
+        // only the designated admin email is allowed to become admin
+        const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'aryathebasha@outlook.com';
+        let role = 'tourist';
+        if (email === ADMIN_EMAIL) {
+            // if the request tries to set admin or anything else, grant admin role
+            role = 'admin';
         }
 
         const salt = await bcrypt.genSalt(10);

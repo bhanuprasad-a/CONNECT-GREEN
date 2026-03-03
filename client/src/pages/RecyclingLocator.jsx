@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import Map, { Marker } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { Leaf, MapPin, Search, Navigation, Recycle, Battery, Trash, Laptop, Clock, Phone, Map as MapIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -46,7 +47,7 @@ const getWasteIcon = (type) => {
 };
 
 const RecyclingLocator = () => {
-    const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+    const API_KEY = import.meta.env.VITE_OLA_MAPS_API_KEY || "";
     const hasValidKey = Boolean(API_KEY && API_KEY.trim() !== "");
 
     const [centers, setCenters] = useState(MOCK_CENTERS);
@@ -56,6 +57,7 @@ const RecyclingLocator = () => {
     const [activeCenter, setActiveCenter] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [zoom, setZoom] = useState(13);
+    const mapRef = useRef(null);
 
     // Get real centers from API if possible
     useEffect(() => {
@@ -88,6 +90,16 @@ const RecyclingLocator = () => {
                     };
                     setUserLocation(newLoc);
                     setZoom(14);
+
+                    if (mapRef.current) {
+                        mapRef.current.flyTo({
+                            center: [newLoc.lng, newLoc.lat],
+                            zoom: 14,
+                            duration: 2000,
+                            essential: true
+                        });
+                    }
+
                     toast.success('Location found!', { id: 'geo' });
                 },
                 (error) => {
@@ -175,8 +187,19 @@ const RecyclingLocator = () => {
                                     className={`bg-darkBg p-4 rounded-lg border flex flex-col gap-3 transition-colors cursor-pointer group ${activeCenter === center ? 'border-neonGreen shadow-[0_0_15px_rgba(34,197,94,0.15)] bg-stone-900' : 'border-stone-800 hover:border-stone-600'}`}
                                     onClick={() => {
                                         setActiveCenter(center);
-                                        setUserLocation({ lat: center.lat || center.location?.coordinates[1] || defaultCenter.lat, lng: center.lng || center.location?.coordinates[0] || defaultCenter.lng });
+                                        const lat = center.lat || center.location?.coordinates[1] || defaultCenter.lat;
+                                        const lng = center.lng || center.location?.coordinates[0] || defaultCenter.lng;
+                                        setUserLocation({ lat, lng });
                                         setZoom(15);
+
+                                        if (mapRef.current) {
+                                            mapRef.current.flyTo({
+                                                center: [lng, lat],
+                                                zoom: 16,
+                                                duration: 1500,
+                                                essential: true
+                                            });
+                                        }
                                     }}
                                 >
                                     <div className="flex justify-between items-start">
@@ -223,62 +246,65 @@ const RecyclingLocator = () => {
                         </button>
                     </div>
                 ) : (
-                    <APIProvider apiKey={API_KEY}>
-                        <div className="w-full h-full">
-                            <Map
-                                defaultZoom={13}
-                                zoom={zoom}
-                                onZoomChanged={e => setZoom(e.detail.zoom)}
-                                center={userLocation}
-                                onCenterChanged={e => setUserLocation(e.detail.center)}
-                                mapId="DEMO_MAP_ID_RECYCLING"
-                                disableDefaultUI={true}
-                                zoomControl={true}
-                                colorScheme={'DARK'}
-                            >
-                                {/* User Location Pin */}
-                                {userLocation !== defaultCenter && (
-                                    <AdvancedMarker position={userLocation}>
-                                        <Pin background={'#3b82f6'} borderColor={'#1d4ed8'} glyphColor={'#eff6ff'} />
-                                    </AdvancedMarker>
-                                )}
+                    <div className="w-full h-full">
+                        <Map
+                            ref={mapRef}
+                            initialViewState={{ longitude: userLocation.lng, latitude: userLocation.lat, zoom }}
+                            mapStyle={`https://api.olamaps.io/tiles/vector/v1/styles/default-dark-standard/style.json?api_key=${API_KEY}`}
+                            style={{ width: '100%', height: '100%' }}
+                            transformRequest={(url, resourceType) => {
+                                if (url.includes('olamaps.io') && !url.includes('api_key=')) {
+                                    url = url + (url.includes('?') ? '&' : '?') + `api_key=${API_KEY}`;
+                                }
+                                return { url };
+                            }}
+                            onMove={evt => {
+                                setZoom(evt.viewState.zoom);
+                                setUserLocation({ lat: evt.viewState.latitude, lng: evt.viewState.longitude });
+                            }}
+                        >
+                            {/* User Location Pin */}
+                            {userLocation !== defaultCenter && (
+                                <Marker longitude={userLocation.lng} latitude={userLocation.lat}>
+                                    <div className="text-blue-500 drop-shadow-md"><MapPin fill="#3b82f6" /></div>
+                                </Marker>
+                            )}
 
-                                {/* Interactive Pins for Centers */}
-                                {filteredCenters.map(center => {
-                                    const lat = center.lat || center.location?.coordinates[1] || 0;
-                                    const lng = center.lng || center.location?.coordinates[0] || 0;
+                            {/* Interactive Pins for Centers */}
+                            {filteredCenters.map(center => {
+                                const lat = center.lat || center.location?.coordinates[1] || 0;
+                                const lng = center.lng || center.location?.coordinates[0] || 0;
 
-                                    return (
-                                        <AdvancedMarker key={center.id || center._id} position={{ lat, lng }}>
-                                            <div
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveCenter(center);
-                                                }}
-                                                className="cursor-pointer group relative -translate-x-1/2 -translate-y-1/2"
-                                            >
-                                                <div className={`w-8 h-8 rounded flex items-center justify-center text-darkBg border-[3px] border-darkBg shadow-xl transition-all ${activeCenter === center ? 'bg-white scale-125 z-50' : (center.isOpen ? 'bg-neonGreen hover:bg-accentGreen' : 'bg-stone-500 hover:bg-stone-400')}`}>
-                                                    <Recycle size={18} className={activeCenter === center ? 'text-neonGreen' : 'text-darkBg'} />
-                                                </div>
-
-                                                {/* Status Dot */}
-                                                <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-darkBg ${center.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
-
-                                                {/* Map Tooltip on hover/active */}
-                                                <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-deepCard text-white w-48 p-2 rounded shadow-2xl transition-all pointer-events-none border border-stone-700 font-semibold z-[60] origin-bottom ${activeCenter === center ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-                                                    <p className="text-xs font-bold text-center border-b border-stone-700 pb-1 mb-1 truncate">{center.name}</p>
-                                                    <p className="text-[10px] text-stone-400 text-center">{center.address}</p>
-                                                    <p className={`text-[9px] text-center mt-1 uppercase font-bold tracking-widest ${center.isOpen ? 'text-neonGreen' : 'text-red-500'}`}>
-                                                        {center.isOpen ? 'Open' : 'Closed'}
-                                                    </p>
-                                                </div>
+                                return (
+                                    <Marker key={center.id || center._id} longitude={lng} latitude={lat}>
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveCenter(center);
+                                            }}
+                                            className="cursor-pointer group relative -translate-x-1/2 -translate-y-1/2"
+                                        >
+                                            <div className={`w-8 h-8 rounded flex items-center justify-center text-darkBg border-[3px] border-darkBg shadow-xl transition-all ${activeCenter === center ? 'bg-white scale-125 z-50' : (center.isOpen ? 'bg-neonGreen hover:bg-accentGreen' : 'bg-stone-500 hover:bg-stone-400')}`}>
+                                                <Recycle size={18} className={activeCenter === center ? 'text-neonGreen' : 'text-darkBg'} />
                                             </div>
-                                        </AdvancedMarker>
-                                    );
-                                })}
-                            </Map>
-                        </div>
-                    </APIProvider>
+
+                                            {/* Status Dot */}
+                                            <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-darkBg ${center.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+
+                                            {/* Map Tooltip on hover/active */}
+                                            <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-deepCard text-white w-48 p-2 rounded shadow-2xl transition-all pointer-events-none border border-stone-700 font-semibold z-[60] origin-bottom ${activeCenter === center ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+                                                <p className="text-xs font-bold text-center border-b border-stone-700 pb-1 mb-1 truncate">{center.name}</p>
+                                                <p className="text-[10px] text-stone-400 text-center">{center.address}</p>
+                                                <p className={`text-[9px] text-center mt-1 uppercase font-bold tracking-widest ${center.isOpen ? 'text-neonGreen' : 'text-red-500'}`}>
+                                                    {center.isOpen ? 'Open' : 'Closed'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Marker>
+                                );
+                            })}
+                        </Map>
+                    </div>
                 )}
             </div>
         </div>

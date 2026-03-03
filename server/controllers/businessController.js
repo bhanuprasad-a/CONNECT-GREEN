@@ -27,9 +27,19 @@ const createBusiness = async (req, res) => {
         // Extract image URL from local Multer upload
         const imageData = req.file ? { image: '/uploads/' + req.file.filename } : {};
 
+        let parsedGreenCriteria = {};
+        if (req.body.greenCriteria) {
+            try {
+                parsedGreenCriteria = typeof req.body.greenCriteria === 'string' ? JSON.parse(req.body.greenCriteria) : req.body.greenCriteria;
+            } catch (e) {
+                console.error("Failed to parse greenCriteria", e);
+            }
+        }
+
         const business = new Business({
             ...req.body,
             ...imageData,
+            greenCriteria: parsedGreenCriteria,
             owner: req.user._id,
             badgeStatus: 'pending' // Force new businesses to pending state
         });
@@ -85,7 +95,7 @@ const deleteBusiness = async (req, res) => {
 
 const updateBadgeStatus = async (req, res) => {
     try {
-        const { badgeStatus, isVerified } = req.body;
+        const { badgeStatus, isVerified, rejectionReason } = req.body;
         const business = await Business.findById(req.params.id);
 
         if (!business) {
@@ -95,6 +105,7 @@ const updateBadgeStatus = async (req, res) => {
         // Only update fields that were passed
         if (badgeStatus !== undefined) business.badgeStatus = badgeStatus;
         if (isVerified !== undefined) business.isVerified = isVerified;
+        if (rejectionReason !== undefined) business.rejectionReason = rejectionReason;
 
         const updatedBusiness = await business.save();
         res.json(updatedBusiness);

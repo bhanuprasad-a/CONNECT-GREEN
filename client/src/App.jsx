@@ -14,6 +14,8 @@ import Dashboard from './pages/Dashboard';
 import NatureSites from './pages/NatureSites';
 import BusinessDetails from './pages/BusinessDetails';
 import RecyclingLocator from './pages/RecyclingLocator';
+import SiteManagerApply from './pages/SiteManagerApply';
+import CarbonOffset from './pages/CarbonOffset';
 
 // Placeholder Pages (To be built in Phase 5)
 const DashboardPlaceholder = () => <div className="min-h-screen pt-32 pb-20 px-4 text-center"><h2 className="text-4xl font-display text-neonGreen font-bold">User Dashboard</h2></div>;
@@ -41,6 +43,8 @@ function App() {
                             <Route path="/dashboard" element={<Dashboard />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
+                            <Route path="/apply-site-manager" element={<SiteManagerApply />} />
+                            <Route path="/offset" element={<CarbonOffset />} />
                         </Routes>
                     </main>
 

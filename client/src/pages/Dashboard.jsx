@@ -32,7 +32,7 @@ const Dashboard = () => {
 
                 {/* Dynamic Role Views */}
                 {user.role === 'tourist' && <TouristView />}
-                {user.role === 'business' && <BusinessView />}
+                {user.role === 'business' && <BusinessView user={user} />}
                 {user.role === 'admin' && <AdminView />}
                 {user.role === 'siteManager' && <SiteManagerView />}
             </div>
@@ -142,6 +142,18 @@ const TouristView = () => {
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
+
+                    <div className="mt-8 pt-6 border-t border-stone-800">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h4 className="text-white font-bold font-display text-lg mb-1">Passionate about Nature Conservation?</h4>
+                                <p className="text-stone-400 text-sm max-w-md">Become a Conservation Site Manager. Apply now to get access to custom dashboard tools to control visitor statuses!</p>
+                            </div>
+                            <a href="/apply-site-manager" className="bg-stone-800 hover:bg-stone-700 text-white font-semibold py-2 px-6 rounded border border-stone-700 transition-colors whitespace-nowrap text-sm h-fit">
+                                Apply as Site Manager
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right: Trip History Table/List */}
@@ -172,26 +184,37 @@ const TouristView = () => {
     );
 };
 /* --- BUSINESS VIEW (Image Upload & Badge Application) --- */
-const BusinessView = () => {
+const BusinessView = ({ user }) => {
     const [formData, setFormData] = useState({ name: '', category: 'hotel', location: '', description: '' });
+    const [greenCriteria, setGreenCriteria] = useState({
+        renewableEnergyPercent: 0,
+        hasNoPlastics: false,
+        sourcesLocally: false,
+        waterConservation: false,
+        fairWageEmployment: false,
+        habitatProtection: false
+    });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [myBusinesses, setMyBusinesses] = useState([]);
+    const [editingId, setEditingId] = useState(null);
+
+    const fetchMyBiz = async () => {
+        try {
+            const res = await api.get('/businesses');
+            const ownerId = user?._id || user?.id;
+            setMyBusinesses(res.data.filter(b => {
+                const bOwnerId = b.owner?._id || b.owner;
+                return bOwnerId === ownerId;
+            }));
+        } catch (err) {
+            console.error("Failed fetching businesses", err);
+        }
+    };
 
     useEffect(() => {
-        const fetchMyBiz = async () => {
-            try {
-                // Fetch and filter for businesses owned by logged-in user
-                const res = await api.get('/businesses');
-                // The API currently returns all for generic GET. For production, create a dedicated GET /api/businesses/me route
-                // For now, if populated works, we find local ones (Assumes owner object has _id populated, or just id string)
-                // We'll trust the user context for mocking the fetch here:
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        fetchMyBiz();
-    }, []);
+        if (user) fetchMyBiz();
+    }, [user]);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -205,18 +228,34 @@ const BusinessView = () => {
         data.append('category', formData.category);
         data.append('location', formData.location);
         data.append('description', formData.description);
+        data.append('greenCriteria', JSON.stringify(greenCriteria));
         if (file) data.append('image', file); // Multer Cloudinary catches 'image'
 
+        if (editingId) {
+            data.append('badgeStatus', 'pending');
+            data.append('isVerified', false);
+            data.append('rejectionReason', ''); // clear reason on reapply
+        }
+
         try {
-            await api.post('/businesses', data, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            toast.success("Business submitted for Green Verification!");
+            if (editingId) {
+                await api.put(`/businesses/${editingId}`, data, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                });
+                toast.success("Application updated and re-submitted for verification!");
+            } else {
+                await api.post('/businesses', data, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                });
+                toast.success("Business submitted for Green Verification!");
+            }
+
             setFormData({ name: '', category: 'hotel', location: '', description: '' });
+            setGreenCriteria({ renewableEnergyPercent: 0, hasNoPlastics: false, sourcesLocally: false, waterConservation: false, fairWageEmployment: false, habitatProtection: false });
             setFile(null);
             setPreview(null);
+            setEditingId(null);
+            fetchMyBiz(); // Refresh list
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to submit application");
         }
@@ -225,7 +264,9 @@ const BusinessView = () => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
-                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4">Register Your Eco-Business</h3>
+                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4">
+                    {editingId ? "Edit & Re-apply Business" : "Register Your Eco-Business"}
+                </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" placeholder="Business Name" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
 
@@ -240,13 +281,50 @@ const BusinessView = () => {
 
                     <textarea placeholder="Describe your sustainability efforts..." required rows="4" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none custom-scrollbar"></textarea>
 
+                    <div className="bg-darkBg p-4 border border-stone-800 rounded-lg space-y-4">
+                        <h4 className="text-neonGreen font-semibold text-sm uppercase tracking-wider mb-2">Green Criteria Questionnaire</h4>
+
+                        <div>
+                            <label className="text-stone-300 text-sm block mb-1">What percentage of your energy comes from renewable sources?</label>
+                            <div className="flex items-center gap-4">
+                                <input type="range" min="0" max="100" value={greenCriteria.renewableEnergyPercent} onChange={(e) => setGreenCriteria({ ...greenCriteria, renewableEnergyPercent: parseInt(e.target.value) })} className="w-full accent-neonGreen" />
+                                <span className="text-white font-bold min-w-[3rem] text-right">{greenCriteria.renewableEnergyPercent}%</span>
+                            </div>
+                        </div>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked={greenCriteria.hasNoPlastics} onChange={(e) => setGreenCriteria({ ...greenCriteria, hasNoPlastics: e.target.checked })} className="w-5 h-5 accent-neonGreen cursor-pointer flex-shrink-0" />
+                            <span className="text-stone-300 text-sm">We have effectively banned single-use plastics from our operations.</span>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked={greenCriteria.sourcesLocally} onChange={(e) => setGreenCriteria({ ...greenCriteria, sourcesLocally: e.target.checked })} className="w-5 h-5 accent-neonGreen cursor-pointer flex-shrink-0" />
+                            <span className="text-stone-300 text-sm">We source more than 60% of our supplies locally (within 50 miles).</span>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked={greenCriteria.waterConservation} onChange={(e) => setGreenCriteria({ ...greenCriteria, waterConservation: e.target.checked })} className="w-5 h-5 accent-neonGreen cursor-pointer flex-shrink-0" />
+                            <span className="text-stone-300 text-sm">We utilize advanced water conservation (low-flow systems, rainwater harvesting).</span>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked={greenCriteria.fairWageEmployment} onChange={(e) => setGreenCriteria({ ...greenCriteria, fairWageEmployment: e.target.checked })} className="w-5 h-5 accent-neonGreen cursor-pointer flex-shrink-0" />
+                            <span className="text-stone-300 text-sm">We guarantee fair wages and prioritize hiring from the local community.</span>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked={greenCriteria.habitatProtection} onChange={(e) => setGreenCriteria({ ...greenCriteria, habitatProtection: e.target.checked })} className="w-5 h-5 accent-neonGreen cursor-pointer flex-shrink-0" />
+                            <span className="text-stone-300 text-sm">We actively participate in ecosystem/habitat protection and guest education.</span>
+                        </label>
+                    </div>
+
                     <div className="border border-stone-700 border-dashed rounded-lg p-6 text-center hover:border-neonGreen transition-colors cursor-pointer bg-darkBg relative">
-                        <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required />
                         {!preview ? (
                             <div className="flex flex-col items-center">
                                 <Camera size={24} className="text-stone-400 mb-2" />
-                                <span className="text-stone-300 text-sm">Upload Cover Image</span>
-                                <span className="text-stone-500 text-xs mt-1">(JPEG, PNG limit 5MB)</span>
+                                <span className="text-stone-300 text-sm">Upload Evidence Form (Image/Doc)</span>
+                                <span className="text-stone-500 text-xs mt-1 text-center px-4">Provide proof of solar panels, local farm invoices, or no-plastic amenities.</span>
                             </div>
                         ) : (
                             <img src={preview} alt="Preview" className="h-32 mx-auto rounded object-cover" />
@@ -254,17 +332,68 @@ const BusinessView = () => {
                     </div>
 
                     <button type="submit" className="w-full py-3 bg-neonGreen text-darkBg font-bold rounded flex justify-center items-center gap-2 hover:bg-accentGreen transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]">
-                        <Send size={18} /> Apply for Green Badge
+                        <Send size={18} /> {editingId ? "Submit Re-application" : "Apply for Green Badge"}
                     </button>
                 </form>
             </div>
 
             <div className="bg-deepCard p-8 rounded-xl border border-stone-800 h-fit">
-                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4">My Dashboard</h3>
-                <div className="text-center py-10">
-                    <ShieldCheck size={48} className="text-stone-600 mx-auto mb-4" />
-                    <p className="text-stone-400">Apply utilizing the form. Your business will appear here once submitted and verified.</p>
-                </div>
+                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4">My Businesses & Status</h3>
+
+                {myBusinesses.length === 0 ? (
+                    <div className="text-center py-10">
+                        <ShieldCheck size={48} className="text-stone-600 mx-auto mb-4" />
+                        <p className="text-stone-400">Apply utilizing the form. Your business will appear here once submitted.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {myBusinesses.map(biz => (
+                            <div key={biz._id} className="p-4 bg-darkBg border border-stone-700 rounded-lg">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="text-white font-bold text-lg">{biz.name}</h4>
+                                    <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${biz.badgeStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                                        biz.badgeStatus === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                                            biz.badgeStatus !== 'none' ? 'bg-neonGreen/20 text-neonGreen' : 'bg-stone-800 text-stone-400'
+                                        }`}>
+                                        {biz.badgeStatus}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-stone-400 capitalize mb-2">{biz.category} • {biz.location}</p>
+
+                                {biz.badgeStatus === 'rejected' && (
+                                    <div className="mt-4 p-3 bg-red-950/30 border border-red-900/50 rounded-lg">
+                                        <div className="flex items-start gap-2 mb-2">
+                                            <XCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                                            <div>
+                                                <span className="text-red-400 font-bold block text-sm">Application Needs Correction</span>
+                                                <p className="text-stone-300 text-xs mt-1 leading-relaxed">Admin Feedback: "{biz.rejectionReason || 'Please review your green criteria and evidence.'}"</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setEditingId(biz._id);
+                                                setFormData({ name: biz.name, category: biz.category, location: biz.location, description: biz.description });
+                                                if (biz.greenCriteria) setGreenCriteria({
+                                                    renewableEnergyPercent: biz.greenCriteria.renewableEnergyPercent || 0,
+                                                    hasNoPlastics: !!biz.greenCriteria.hasNoPlastics,
+                                                    sourcesLocally: !!biz.greenCriteria.sourcesLocally,
+                                                    waterConservation: !!biz.greenCriteria.waterConservation,
+                                                    fairWageEmployment: !!biz.greenCriteria.fairWageEmployment,
+                                                    habitatProtection: !!biz.greenCriteria.habitatProtection
+                                                });
+                                                setPreview(biz.image && biz.image !== 'no-photo.jpg' ? (biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image) : null);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                            className="w-full mt-2 py-2 bg-stone-800 hover:bg-stone-700 text-white text-xs font-bold rounded transition-colors"
+                                        >
+                                            Edit Application & Re-Submit
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -288,6 +417,21 @@ const AdminView = () => {
         fetchPending();
     }, []);
 
+    const [pendingManagers, setPendingManagers] = useState([]);
+
+    useEffect(() => {
+        const fetchPendingManagers = async () => {
+            try {
+                const res = await api.get('/site-requests');
+                setPendingManagers(res.data.filter(r => r.status === 'pending'));
+            } catch (error) {
+                console.error("Admin View failed fetching requests:", error);
+            }
+        }
+        fetchPendingManagers();
+    }, []);
+
+
     const handleApproval = async (id, status) => {
         try {
             await api.put(`/businesses/${id}/badge`, { badgeStatus: status, isVerified: true });
@@ -297,6 +441,41 @@ const AdminView = () => {
             toast.error("Failed to approve business.");
         }
     };
+
+    const handleReject = async (id) => {
+        const reason = window.prompt("Reason for rejection (this will be sent to the business to correct):");
+        if (reason === null) return; // User cancelled
+        if (!reason.trim()) {
+            return toast.error("A reason is required to reject an application.");
+        }
+        try {
+            await api.put(`/businesses/${id}/badge`, { badgeStatus: 'rejected', isVerified: false, rejectionReason: reason });
+            toast.success(`Application rejected.`);
+            setPending(pending.filter(b => b._id !== id));
+        } catch (error) {
+            console.error("Rejection Error:", error.response?.data || error.message);
+            toast.error(error.response?.data?.message || "Failed to reject application.");
+        }
+    };
+
+    const handleManagerApproval = async (id, status) => {
+        let reason = '';
+        if (status === 'rejected') {
+            reason = window.prompt("Reason for rejection (optional):");
+            if (reason === null) return;
+        }
+
+        try {
+            await api.put(`/site-requests/${id}/status`, { status, rejectionReason: reason }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            toast.success(`Site manager request ${status}!`);
+            setPendingManagers(pendingManagers.filter(r => r._id !== id));
+        } catch (error) {
+            toast.error("Failed to update site manager request.");
+        }
+    };
+
 
     const handleCreateSiteManager = async (e) => {
         e.preventDefault();
@@ -359,8 +538,20 @@ const AdminView = () => {
                                         </td>
                                         <td className="py-4 px-4 text-stone-300 capitalize">{biz.category}</td>
                                         <td className="py-4 px-4">
+                                            <div className="flex flex-col gap-1 mb-2">
+                                                {biz.greenCriteria && (
+                                                    <div className="bg-darkBg p-2 rounded text-xs border border-stone-800">
+                                                        <p><span className="text-stone-500">Renewable:</span> <span className="text-neonGreen font-bold">{biz.greenCriteria.renewableEnergyPercent || 0}%</span></p>
+                                                        <p><span className="text-stone-500">No Plastics:</span> {biz.greenCriteria.hasNoPlastics ? '✅' : '❌'}</p>
+                                                        <p><span className="text-stone-500">Water Consv:</span> {biz.greenCriteria.waterConservation ? '✅' : '❌'}</p>
+                                                        <p><span className="text-stone-500">Local Sourcing:</span> {biz.greenCriteria.sourcesLocally ? '✅' : '❌'}</p>
+                                                        <p><span className="text-stone-500">Fair Wage:</span> {biz.greenCriteria.fairWageEmployment ? '✅' : '❌'}</p>
+                                                        <p><span className="text-stone-500">Habitat Prot:</span> {biz.greenCriteria.habitatProtection ? '✅' : '❌'}</p>
+                                                    </div>
+                                                )}
+                                            </div>
                                             {biz.image && biz.image !== 'no-photo.jpg' ? (
-                                                <a href={biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image} target="_blank" rel="noreferrer" className="text-neonGreen hover:underline text-sm">View Image</a>
+                                                <a href={biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image} target="_blank" rel="noreferrer" className="text-neonGreen hover:underline text-sm font-semibold inline-flex items-center gap-1">View Evidence <Map size={12} /></a>
                                             ) : (
                                                 <span className="text-xs text-stone-600">None Provided</span>
                                             )}
@@ -378,7 +569,7 @@ const AdminView = () => {
                                                 <option value="gold">Approve Gold (-80% CO2)</option>
                                                 <option value="platinum">Approve Platinum (Zero Carbon)</option>
                                             </select>
-                                            <button className="p-1.5 text-red-400 hover:bg-stone-800 rounded transition-colors" title="Reject & Delete">
+                                            <button onClick={() => handleReject(biz._id)} className="p-1.5 text-red-400 hover:bg-stone-800 rounded transition-colors" title="Reject & Request Edits">
                                                 <XCircle size={18} />
                                             </button>
                                         </td>

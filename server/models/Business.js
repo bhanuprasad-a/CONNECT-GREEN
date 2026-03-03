@@ -31,8 +31,12 @@ const businessSchema = new mongoose.Schema({
     },
     badgeStatus: {
         type: String,
-        enum: ['none', 'pending', 'bronze', 'silver', 'gold', 'platinum'],
+        enum: ['none', 'pending', 'bronze', 'silver', 'gold', 'platinum', 'rejected'],
         default: 'none'
+    },
+    rejectionReason: {
+        type: String,
+        default: ''
     },
     isVerified: {
         type: Boolean,
@@ -43,6 +47,36 @@ const businessSchema = new mongoose.Schema({
         min: [1, 'Rating must be at least 1'],
         max: [5, 'Rating cannot exceed 5'],
         default: 5
+    },
+    greenCriteria: {
+        renewableEnergyPercent: {
+            type: Number,
+            default: 0
+        },
+        hasNoPlastics: {
+            type: Boolean,
+            default: false
+        },
+        sourcesLocally: {
+            type: Boolean,
+            default: false
+        },
+        waterConservation: {
+            type: Boolean,
+            default: false
+        },
+        fairWageEmployment: {
+            type: Boolean,
+            default: false
+        },
+        habitatProtection: {
+            type: Boolean,
+            default: false
+        },
+        evidenceDocuments: {
+            type: [String], // Array of uploaded document URLs (Cloudinary)
+            default: []
+        }
     }
 }, {
     timestamps: true

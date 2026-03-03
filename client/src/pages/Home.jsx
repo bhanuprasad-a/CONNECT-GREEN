@@ -2,13 +2,14 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Map, BadgeCheck, Activity, Users, Globe, Leaf, Search, MapPin, CheckCircle, Star } from 'lucide-react';
 import { PieChart, Pie, Cell } from 'recharts';
-
+import { useContext, useEffect, useState } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import api from '../api/axios';
 const features = [
     { icon: <Map size={32} />, title: 'Trip Planner', desc: 'AI-powered routing tailored for low carbon impact and maximum local engagement.' },
     { icon: <BadgeCheck size={32} />, title: 'Green Badge', desc: 'Strict verification system ensuring you only support genuinely sustainable businesses.' },
     { icon: <Activity size={32} />, title: 'Carbon Tracker', desc: 'Real-time metrics on your travel impact and CO2 savings compared to standard trips.' },
     { icon: <Globe size={32} />, title: 'Site Monitor', desc: 'Live traffic light system preventing over-tourism at delicate natural conservation areas.' },
-    { icon: <Users size={32} />, title: 'Community Connector', desc: 'Direct links to local organic farms, eco-guides, and artisans without middlemen.' },
     { icon: <Leaf size={32} />, title: 'Carbon Offset', desc: 'Instantly fund verified planting and clean energy projects to neutralize your footprint.' }
 ];
 
@@ -25,6 +26,38 @@ const testimonials = [
 ];
 
 const Home = () => {
+    const { user } = useContext(AuthContext);
+    const [tripStats, setTripStats] = useState({ tripsCount: 0, savedPercent: 0, stdEmissions: 0, actEmissions: 0 });
+
+    useEffect(() => {
+        const fetchTrips = async () => {
+            if (user && user.role === 'tourist') {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await api.get('/trips', { headers: { Authorization: `Bearer ${token}` } });
+                    const trips = res.data.trips || res.data;
+                    if (trips.length > 0) {
+                        let totalSavings = 0;
+                        let totalDistance = 0;
+                        trips.forEach(t => {
+                            totalSavings += (t.co2Saved || t.carbonSavings || 0);
+                            totalDistance += (t.distance || 0);
+                        });
+                        const stdEmiss = totalDistance * 0.192;
+                        const actEmiss = Math.max(0, stdEmiss - totalSavings);
+                        const savedPct = stdEmiss > 0 ? Math.round((totalSavings / stdEmiss) * 100) : 0;
+                        setTripStats({ tripsCount: trips.length, savedPercent: savedPct, stdEmissions: Math.round(stdEmiss), actEmissions: Math.round(actEmiss) });
+                    }
+                } catch (err) { }
+            }
+        };
+        fetchTrips();
+    }, [user]);
+
+    const pieData = tripStats.tripsCount > 0
+        ? [{ name: "Saved", value: tripStats.savedPercent }, { name: "Emitted", value: 100 - tripStats.savedPercent }]
+        : [{ name: "Saved", value: 0 }, { name: "Emitted", value: 100 }];
+
     return (
         <div className="flex flex-col w-full text-stone-800">
             {/* HERO SECTION */}
@@ -32,9 +65,7 @@ const Home = () => {
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_50%,rgba(34,197,94,0.15)_0%,transparent_60%)] pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center relative z-10">
                     <div className="lg:w-[55%] pt-10 pb-16 lg:pr-12 text-center lg:text-left">
-                        <span className="inline-block border border-deepCard bg-deepCard/50 text-neonGreen font-medium text-xs sm:text-sm px-4 py-1.5 rounded-full mb-6 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
-                            AI-Powered Sustainable Tourism
-                        </span>
+
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display font-bold leading-tight tracking-tight mb-6">
                             Travel Green.<br />
                             <span className="text-neonGreen">Live Smart.</span>
@@ -46,9 +77,9 @@ const Home = () => {
                             <Link to="/planner" className="px-8 py-3.5 bg-neonGreen text-darkBg font-semibold rounded hover:bg-accentGreen transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] text-center">
                                 Plan My Green Trip
                             </Link>
-                            <Link to="#how-it-works" className="px-8 py-3.5 border-1.5 border-neonGreen text-white font-semibold rounded hover:bg-neonGreen/10 transition-colors text-center">
+                            <a href="#how-it-works" onClick={(e) => { e.preventDefault(); document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-8 py-3.5 border border-neonGreen text-white font-semibold rounded hover:bg-neonGreen/10 transition-colors text-center cursor-pointer block sm:inline-block">
                                 See How It Works
-                            </Link>
+                            </a>
                         </div>
                         <div className="flex flex-wrap justify-center lg:justify-start gap-8 border-t border-stone-800 pt-8">
                             <div>
@@ -186,6 +217,53 @@ const Home = () => {
                 </div>
             </section>
 
+            {/* OFFSET INTRO */}
+            <section className="py-24 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                        <motion.div
+                            initial={{ opacity: 0, x: -30 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                        >
+                            <h2 className="text-4xl font-display font-bold text-darkBg mb-6">
+                                Small Choices, <br /><span className="text-neonGreen">Infinite Impact.</span>
+                            </h2>
+                            <div className="space-y-8">
+                                <p className="text-stone-500 text-lg leading-relaxed">
+                                    Travel always leaves a trace, but it doesn't have to be a burden. Through our verified carbon offset programs, you can neutralize your footprint by funding reforestation and renewable energy projects worldwide.
+                                </p>
+                                <div className="flex gap-4">
+                                    <div className="w-12 h-12 bg-neonGreen/10 rounded-xl flex items-center justify-center flex-shrink-0 text-neonGreen">
+                                        <Leaf size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold mb-2 text-darkBg">Verified Carbon Offsetting</h3>
+                                        <p className="text-stone-500 text-sm leading-relaxed mb-4">
+                                            Fund global projects from reforestation to renewable energy through our verified portfolio. Real impact, tracked in real-time.
+                                        </p>
+                                        <Link to="/offset" className="text-neonGreen font-bold text-sm hover:underline">Neutralize Your Footprint →</Link>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            className="relative"
+                        >
+                            <img
+                                src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800"
+                                alt="Sustainability"
+                                className="rounded-3xl shadow-2xl relative z-10"
+                            />
+                            <div className="absolute -bottom-6 -right-6 w-full h-full bg-neonGreen/10 rounded-3xl -z-10"></div>
+                        </motion.div>
+                    </div>
+                </div>
+            </section>
+
             {/* CARBON TRACKER SECTION */}
             <section className="py-24 bg-lightBg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -199,7 +277,7 @@ const Home = () => {
                             <div className="relative w-[250px] h-[250px]">
                                 <PieChart width={250} height={250}>
                                     <Pie
-                                        data={[{ name: "Saved", value: 75 }, { name: "Emitted", value: 25 }]}
+                                        data={pieData}
                                         cx="50%" cy="50%"
                                         innerRadius={80}
                                         outerRadius={100}
@@ -208,12 +286,12 @@ const Home = () => {
                                         dataKey="value"
                                         stroke="none"
                                     >
-                                        <Cell fill="#22C55E" />
+                                        <Cell fill={tripStats.tripsCount > 0 ? "#22C55E" : "#f3f4f6"} />
                                         <Cell fill="#f3f4f6" />
                                     </Pie>
                                 </PieChart>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-4xl font-display font-bold text-primaryGreen">75%</span>
+                                    <span className="text-4xl font-display font-bold text-primaryGreen">{tripStats.savedPercent}%</span>
                                     <span className="text-xs text-stone-500 uppercase font-semibold">CO2 Reduced</span>
                                 </div>
                             </div>
@@ -222,25 +300,37 @@ const Home = () => {
                         <div>
                             <h3 className="text-2xl font-semibold text-primaryGreen mb-6">Your Average Trip Emissions</h3>
 
-                            <div className="mb-6">
-                                <div className="flex justify-between text-sm mb-2 text-stone-600 font-medium">
-                                    <span>Standard Tourist Trip</span>
-                                    <span>850 kg CO2</span>
+                            {tripStats.tripsCount === 0 ? (
+                                <div className="p-6 border-2 border-dashed border-stone-200 rounded-xl text-center">
+                                    <h4 className="text-lg font-semibold text-stone-600 mb-2">No trips recorded yet</h4>
+                                    <p className="text-stone-500 text-sm mb-4">Participate in the trips by planning green routes to see your real-time carbon reduction average!</p>
+                                    <Link to="/planner" className="inline-block px-5 py-2 bg-neonGreen text-darkBg text-sm font-semibold rounded hover:bg-accentGreen transition-colors">
+                                        Plan a Trip
+                                    </Link>
                                 </div>
-                                <div className="w-full bg-stone-200 rounded-full h-3">
-                                    <div className="bg-stone-400 h-3 rounded-full" style={{ width: '100%' }}></div>
-                                </div>
-                            </div>
+                            ) : (
+                                <div>
+                                    <div className="mb-6">
+                                        <div className="flex justify-between text-sm mb-2 text-stone-600 font-medium">
+                                            <span>Standard Tourist Trip</span>
+                                            <span>{tripStats.stdEmissions} kg CO2</span>
+                                        </div>
+                                        <div className="w-full bg-stone-200 rounded-full h-3">
+                                            <div className="bg-stone-400 h-3 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
 
-                            <div>
-                                <div className="flex justify-between text-sm mb-2 font-semibold text-primaryGreen">
-                                    <span>CONNECT GREEN Trip</span>
-                                    <span>210 kg CO2</span>
+                                    <div>
+                                        <div className="flex justify-between text-sm mb-2 font-semibold text-primaryGreen">
+                                            <span>CONNECT GREEN Trip</span>
+                                            <span>{tripStats.actEmissions} kg CO2</span>
+                                        </div>
+                                        <div className="w-full bg-stone-200 rounded-full h-3">
+                                            <div className="bg-neonGreen h-3 rounded-full shadow-[0_0_10px_#22C55E]" style={{ width: `${100 - tripStats.savedPercent}%` }}></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="w-full bg-stone-200 rounded-full h-3">
-                                    <div className="bg-neonGreen h-3 rounded-full w-1/4 shadow-[0_0_10px_#22C55E]"></div>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

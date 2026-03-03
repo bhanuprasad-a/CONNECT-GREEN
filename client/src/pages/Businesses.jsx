@@ -17,6 +17,31 @@ const Businesses = () => {
         { _id: '3', name: 'Organic Vegan Bites', category: 'restaurant', location: 'Berlin, DE', badgeStatus: 'silver', avgRating: 4.2, image: 'https://images.unsplash.com/photo-1498837167339-5fe41ae49b99?w=500' },
         { _id: '4', name: 'Coral Rescue Dive', category: 'activity', location: 'Bali, ID', badgeStatus: 'bronze', avgRating: 4.5, image: 'https://images.unsplash.com/photo-1544551763-46a013ad70d3?w=500' }
     ];
+    const mockBusinesses = [
+        {
+            owner: "69a41f7b4305ecd98749812e", // existing user _id
+            name: "Green Valley Eco Resort",
+            category: "hotel",
+            location: "Araku Valley",
+            description: "Sustainable resort using solar power and organic farming.",
+            image: "/uploads/green-valley.webp",
+            badgeStatus: "gold",
+            isVerified: true,
+            avgRating: 4.7
+        },
+        {
+            owner: "69a41f7b4305ecd98749812e",
+            name: "Nature Roots Restaurant",
+            category: "restaurant",
+            location: "Vijayawada",
+            description: "Farm-to-table restaurant serving organic traditional food.",
+            image: "/uploads/nature-roots.webp",
+            badgeStatus: "silver",
+            isVerified: true,
+            avgRating: 4.5
+        }
+    ];
+
 
     useEffect(() => {
         const fetchBusinesses = async () => {
@@ -51,6 +76,16 @@ const Businesses = () => {
         const matchesCategory = filterCategory === '' || b.category === filterCategory;
         return matchesSearch && matchesCategory;
     });
+
+    const getCategoryImage = (category) => {
+        switch (category?.toLowerCase()) {
+            case 'hotel': return 'https://images.unsplash.com/photo-1566073171639-66290f0cb108?auto=format&w=500&q=80'; // Eco Hotel
+            case 'restaurant': return 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&w=500&q=80'; // Healthy Food
+            case 'transport': return 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&w=500&q=80'; // Clean transit
+            case 'activity': return 'https://images.unsplash.com/photo-1544551763-46a013ad70d3?auto=format&w=500&q=80'; // Nature Activity
+            default: return 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&w=500&q=80'; // Generic Eco
+        }
+    };
 
     return (
         <div className="min-h-screen bg-darkBg text-white pt-24 pb-20">
@@ -131,7 +166,7 @@ const Businesses = () => {
                             {filteredBusinesses.map(biz => (
                                 <div key={biz._id} className="bg-deepCard border border-stone-800 rounded-xl overflow-hidden hover:border-neonGreen/50 transition-all hover:shadow-[0_0_25px_rgba(34,197,94,0.1)] group flex flex-col h-full">
                                     <div className="h-48 relative overflow-hidden">
-                                        <img src={biz.image ? (biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image) : 'https://via.placeholder.com/500x300?text=No+Image'} alt={biz.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                        <img src={biz.image ? (biz.image.startsWith('http') ? biz.image : 'http://localhost:5000/' + biz.image.replace(/\\/g, '/').replace(/^\//, '')) : getCategoryImage(biz.category)} alt={biz.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                         <div className="absolute top-3 right-3 bg-darkBg/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-stone-700 shadow-xl">
                                             <BadgeCheck fill={getBadgeColor(biz.badgeStatus)} className="text-darkBg" size={18} />
                                             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: getBadgeColor(biz.badgeStatus) }}>

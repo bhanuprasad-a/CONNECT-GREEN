@@ -15,8 +15,8 @@ export default {
                 lightBg: '#F0FDF4',
             },
             fontFamily: {
-                sans: ['Inter', 'sans-serif'],
-                display: ['Space Grotesk', 'sans-serif'],
+                body: ['Inter', 'sans-serif'],
+                display: ['Outfit', 'sans-serif'],
             },
         },
     },

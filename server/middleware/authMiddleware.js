@@ -23,6 +23,14 @@ const protect = async (req, res, next) => {
 
 const authorize = (...roles) => {
     return (req, res, next) => {
+        // if user claims admin role, ensure they match the designated admin email
+        if (req.user.role === 'admin') {
+            const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'aryathebasha@outlook.com';
+            if (req.user.email !== ADMIN_EMAIL) {
+                return res.status(403).json({ message: 'Admin privileges are restricted to the designated account' });
+            }
+        }
+
         if (!roles.includes(req.user.role)) {
             return res.status(403).json({ message: `User role ${req.user.role} is not authorized to access this route` });
         }
