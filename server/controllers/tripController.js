@@ -24,18 +24,31 @@ const getTripById = async (req, res) => {
 
 const createTrip = async (req, res) => {
     try {
-        const { origin, destination, distanceCO2, startDate, endDate, selectedBusinesses, carbonScore, carbonSaved } = req.body;
+        const {
+            title,
+            origin,
+            destination,
+            originCoords,
+            destinationCoords,
+            distanceKm,
+            selectedBusinesses,
+            carbonScore,
+            carbonSaved,
+            status
+        } = req.body;
 
         const trip = new Trip({
             user: req.user._id,
+            title,
             origin,
             destination,
-            distanceCO2,
-            startDate,
-            endDate,
+            originCoords,
+            destinationCoords,
+            distanceKm,
             selectedBusinesses,
             carbonScore,
-            carbonSaved
+            carbonSaved,
+            status
         });
 
         const createdTrip = await trip.save();
@@ -44,6 +57,7 @@ const createTrip = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 const deleteTrip = async (req, res) => {
     try {

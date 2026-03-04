@@ -88,23 +88,23 @@ const getDistanceFromPointToLine = (point, lineStart, lineEnd) => {
     const [x0, y0] = point;
     const [x1, y1] = lineStart;
     const [x2, y2] = lineEnd;
-    
+
     const A = x0 - x1;
     const B = y0 - y1;
     const C = x2 - x1;
     const D = y2 - y1;
-    
+
     const dot = A * C + B * D;
     const lenSq = C * C + D * D;
     let param = -1;
-    
+
     if (lenSq !== 0) param = dot / lenSq;
-    
+
     let xx, yy;
     if (param < 0) { xx = x1; yy = y1; }
     else if (param > 1) { xx = x2; yy = y2; }
     else { xx = x1 + param * C; yy = y1 + param * D; }
-    
+
     const dx = x0 - xx;
     const dy = y0 - yy;
     return Math.sqrt(dx * dx + dy * dy);
@@ -112,10 +112,10 @@ const getDistanceFromPointToLine = (point, lineStart, lineEnd) => {
 
 const isPointNearRoute = (point, routeCoords, maxDistanceKm = 50) => {
     if (!routeCoords || routeCoords.length < 2) return true; // Show all if no route
-    
+
     // Convert max distance to approximate degrees (rough estimation)
     const maxDistDegrees = maxDistanceKm / 111;
-    
+
     for (let i = 0; i < routeCoords.length - 1; i++) {
         const dist = getDistanceFromPointToLine(point, routeCoords[i], routeCoords[i + 1]);
         if (dist <= maxDistDegrees) return true;
@@ -200,9 +200,9 @@ const TripPlanner = () => {
             }
             return;
         }
-        
+
         const routeCoords = routeGeojson.features[0].geometry.coordinates;
-        
+
         // Filter businesses along route (within 50km)
         const filteredBiz = businesses.filter(biz => {
             const lat = biz.lat || biz.location?.coordinates?.[1];
@@ -211,7 +211,7 @@ const TripPlanner = () => {
             return isPointNearRoute([lng, lat], routeCoords, 50);
         });
         setNearbyBusinesses(filteredBiz);
-        
+
         // Filter nature sites along route (within 50km)
         const filteredSites = natureSites.filter(site => {
             const lat = site.lat || site.location?.coordinates?.[1];
@@ -220,7 +220,7 @@ const TripPlanner = () => {
             return isPointNearRoute([lng, lat], routeCoords, 50);
         });
         setNearbyNatureSites(filteredSites);
-        
+
         toast.success(`Found ${filteredBiz.length} businesses and ${filteredSites.length} nature sites along your route!`);
     }, [routeGeojson, businesses, natureSites, showAllPOIs]);
 
@@ -313,12 +313,23 @@ const TripPlanner = () => {
             toast.loading('Saving...', { id: 'save' });
             await api.post('/trips', {
                 title: `${origin} → ${destination}`,
-                origin: startLocation, destination: endLocation,
-                distance: routeDetails.distanceKm, carbonSavings: calcSavings, status: 'planned'
+                origin: origin,
+                destination: destination,
+                originCoords: startLocation,
+                destinationCoords: endLocation,
+                distanceKm: routeDetails.distanceKm,
+                selectedBusinesses: selectedItems.filter(i => i._id).map(i => i._id),
+                carbonScore: netCO2,
+                carbonSaved: calcSavings,
+                status: 'planned'
             });
             toast.success('🌱 Itinerary saved!', { id: 'save' });
-        } catch { toast.error('Failed to save.', { id: 'save' }); }
+        } catch (error) {
+            console.error('Trip save error:', error);
+            toast.error('Failed to save itinerary.', { id: 'save' });
+        }
     };
+
 
     /* ══════════════════════════════════════════════════════════
        RENDER
@@ -408,59 +419,54 @@ const TripPlanner = () => {
                             <div>
                                 <label className="text-[10px] text-stone-500 uppercase tracking-widest font-bold block mb-2">Map Display Options</label>
                                 <div className="flex flex-wrap gap-2">
-                                    <button 
+                                    <button
                                         onClick={() => setFilterType(filterType === 'all' ? 'none' : 'all')}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${
-                                            filterType === 'all' 
-                                                ? 'bg-neonGreen/20 border-neonGreen text-neonGreen' 
-                                                : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${filterType === 'all'
+                                            ? 'bg-neonGreen/20 border-neonGreen text-neonGreen'
+                                            : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
+                                            }`}
                                     >
                                         🗺️ {filterType === 'all' ? 'Hide All' : 'Show All'}
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setFilterType(filterType === 'nature' ? 'none' : 'nature')}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${
-                                            filterType === 'nature' 
-                                                ? 'bg-neonGreen/20 border-neonGreen text-neonGreen' 
-                                                : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${filterType === 'nature'
+                                            ? 'bg-neonGreen/20 border-neonGreen text-neonGreen'
+                                            : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
+                                            }`}
                                     >
                                         🌿 Nature Sites
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setFilterType(filterType === 'hotel' ? 'none' : 'hotel')}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${
-                                            filterType === 'hotel' 
-                                                ? 'bg-neonGreen/20 border-neonGreen text-neonGreen' 
-                                                : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${filterType === 'hotel'
+                                            ? 'bg-neonGreen/20 border-neonGreen text-neonGreen'
+                                            : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
+                                            }`}
                                     >
                                         🏨 Eco Hotels
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setFilterType(filterType === 'restaurant' ? 'none' : 'restaurant')}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${
-                                            filterType === 'restaurant' 
-                                                ? 'bg-neonGreen/20 border-neonGreen text-neonGreen' 
-                                                : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${filterType === 'restaurant'
+                                            ? 'bg-neonGreen/20 border-neonGreen text-neonGreen'
+                                            : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
+                                            }`}
                                     >
                                         🥗 Restaurants
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setFilterType(filterType === 'transport' ? 'none' : 'transport')}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${
-                                            filterType === 'transport' 
-                                                ? 'bg-neonGreen/20 border-neonGreen text-neonGreen' 
-                                                : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${filterType === 'transport'
+                                            ? 'bg-neonGreen/20 border-neonGreen text-neonGreen'
+                                            : 'bg-white/5 border-white/10 hover:border-neonGreen/50 text-stone-400'
+                                            }`}
                                     >
                                         🚌 Transport
                                     </button>
                                 </div>
                                 <p className="text-[10px] text-stone-500 mt-2">
-                                    {routeGeojson 
+                                    {routeGeojson
                                         ? `Showing ${filterType === 'all' ? 'all' : filterType} places within 50km of your route`
                                         : 'Calculate a route to see nearby eco-friendly stops'
                                     }
@@ -651,31 +657,49 @@ const TripPlanner = () => {
                     <GeolocateControl position="bottom-right" trackUserLocation />
                     <ScaleControl position="bottom-left" maxWidth={100} unit="metric" />
 
-                    {/* ── Route Layers ── */}
+                    {/* ── Route Layers (Google-Maps-Style Blue) ── */}
                     {routeGeojson && (
                         <Source id="route" type="geojson" data={routeGeojson}>
-                            {/* Outer glow */}
-                            <Layer id="route-glow-outer" type="line"
+                            {/* Blue shadow/glow */}
+                            <Layer id="route-glow" type="line"
                                 layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-                                paint={{ 'line-color': '#22C55E', 'line-width': 24, 'line-opacity': 0.08 }}
+                                paint={{
+                                    'line-color': '#4285F4',
+                                    'line-width': 12,
+                                    'line-opacity': 0.15,
+                                    'line-blur': 3
+                                }}
                             />
-                            {/* Inner glow */}
-                            <Layer id="route-glow-inner" type="line"
+                            {/* Dark blue outline */}
+                            <Layer id="route-outline" type="line"
                                 layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-                                paint={{ 'line-color': '#22C55E', 'line-width': 12, 'line-opacity': 0.18 }}
+                                paint={{
+                                    'line-color': '#185ABC',
+                                    'line-width': 8,
+                                    'line-opacity': 1
+                                }}
                             />
-                            {/* Solid line */}
-                            <Layer id="route-solid" type="line"
+                            {/* Main vibrant blue line */}
+                            <Layer id="route-main" type="line"
                                 layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-                                paint={{ 'line-color': '#22C55E', 'line-width': 4.5, 'line-opacity': 0.95 }}
+                                paint={{
+                                    'line-color': '#4285F4',
+                                    'line-width': 5,
+                                    'line-opacity': 1
+                                }}
                             />
-                            {/* Moving dash animation */}
-                            <Layer id="route-dash" type="line"
-                                layout={{ 'line-join': 'round', 'line-cap': 'butt' }}
-                                paint={{ 'line-color': '#fff', 'line-width': 2, 'line-opacity': 0.35, 'line-dasharray': [3, 10] }}
+                            {/* Subtle light center line for depth */}
+                            <Layer id="route-inner" type="line"
+                                layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+                                paint={{
+                                    'line-color': '#8AB4F8',
+                                    'line-width': 1.5,
+                                    'line-opacity': 0.6
+                                }}
                             />
                         </Source>
                     )}
+
 
                     {/* ── Nature Site Markers (Filtered by filterType) ── */}
                     {(filterType === 'all' || filterType === 'nature') && nearbyNatureSites.map(site => {

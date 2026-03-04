@@ -6,6 +6,10 @@ const tripSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    title: {
+        type: String,
+        default: 'Unnamed Trip'
+    },
     origin: {
         type: String,
         required: [true, 'Please provide an origin']
@@ -14,17 +18,25 @@ const tripSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please provide a destination']
     },
-    distanceCO2: {
+    originCoords: {
+        lat: Number,
+        lng: Number
+    },
+    destinationCoords: {
+        lat: Number,
+        lng: Number
+    },
+    distanceKm: {
         type: Number,
         default: 0
     },
     startDate: {
         type: Date,
-        required: [true, 'Please provide a start date']
+        default: Date.now
     },
     endDate: {
         type: Date,
-        required: [true, 'Please provide an end date']
+        default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) // Default 24h later
     },
     selectedBusinesses: [{
         type: mongoose.Schema.ObjectId,
@@ -32,14 +44,20 @@ const tripSchema = new mongoose.Schema({
     }],
     carbonScore: {
         type: Number,
-        default: 0 // Calculated total CO2 kg based on choices
+        default: 0
     },
     carbonSaved: {
         type: Number,
-        default: 0 // Difference vs baseline non-green trip
+        default: 0
+    },
+    status: {
+        type: String,
+        enum: ['planned', 'completed'],
+        default: 'planned'
     }
 }, {
     timestamps: true
 });
+
 
 module.exports = mongoose.model('Trip', tripSchema);
