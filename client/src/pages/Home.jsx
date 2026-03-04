@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell } from 'recharts';
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axios';
+import { getImageUrl } from '../utils/getImageUrl';
 const features = [
     { icon: <Map size={32} />, title: 'Trip Planner', desc: 'AI-powered routing tailored for low carbon impact and maximum local engagement.' },
     { icon: <BadgeCheck size={32} />, title: 'Green Badge', desc: 'Strict verification system ensuring you only support genuinely sustainable businesses.' },
@@ -13,21 +14,53 @@ const features = [
     { icon: <Leaf size={32} />, title: 'Carbon Offset', desc: 'Instantly fund verified planting and clean energy projects to neutralize your footprint.' }
 ];
 
-const mockBusinesses = [
-    { name: 'EcoLodge Paradise', category: 'Hotel', badge: 'Platinum', color: '#4ADE80', img: 'https://images.unsplash.com/photo-1587061949409-02df41d5e562?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60' },
-    { name: 'Greenway Transport', category: 'Transport', badge: 'Gold', color: '#FFD700', img: 'https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60' },
-    { name: 'Organic Bites', category: 'Restaurant', badge: 'Silver', color: '#C0C0C0', img: 'https://images.unsplash.com/photo-1498837167339-5fe41ae49b99?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60' }
-];
-
 const testimonials = [
-    { text: "This platform completely changed how I travel. Seeing my carbon savings in real-time is incredibly rewarding.", name: "Sarah J.", rate: 5 },
-    { text: "As an eco-lodge owner, CONNECT GREEN brought us visitors who truly care about our conservation efforts.", name: "David M.", rate: 5 },
-    { text: "The site capacity monitor is genius. We avoided a crowded beach and found a hidden gem nearby instead.", name: "Elena R.", rate: 5 }
+    { text: "This platform completely changed how I travel. Seeing my carbon savings in real-time is truly amazing and motivating.", name: "Priya Sharma", rate: 5 },
+    { text: "As an eco-lodge owner, CONNECT GREEN brought us guests who genuinely care about nature and our conservation work.", name: "Ramesh Reddy", rate: 5 },
+    { text: "The site capacity feature is excellent! We avoided a crowded place and found a beautiful peaceful spot nearby instead.", name: "Ananya Patel", rate: 5 }
 ];
 
 const Home = () => {
     const { user } = useContext(AuthContext);
     const [tripStats, setTripStats] = useState({ tripsCount: 0, savedPercent: 0, stdEmissions: 0, actEmissions: 0 });
+    const [businesses, setBusinesses] = useState([]);
+    const [natureSites, setNatureSites] = useState([]);
+    const [platformStats, setPlatformStats] = useState({ 
+        co2Saved: 0, 
+        businessesCount: 0, 
+        sitesCount: 0 
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch businesses
+                const bizRes = await api.get('/businesses');
+                const bizData = bizRes.data || [];
+                setBusinesses(bizData);
+
+                // Fetch nature sites
+                const sitesRes = await api.get('/sites');
+                const sitesData = sitesRes.data || [];
+                setNatureSites(sitesData);
+
+                // Calculate platform stats
+                const totalCO2 = bizData.reduce((sum, b) => sum + (b.co2Save || 0), 0);
+                setPlatformStats({
+                    co2Saved: Math.round(totalCO2 * 10.5), // Estimate based on business savings
+                    businessesCount: bizData.length,
+                    sitesCount: sitesData.length
+                });
+            } catch (err) {
+                console.error('Error fetching data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     useEffect(() => {
         const fetchTrips = async () => {
@@ -83,15 +116,15 @@ const Home = () => {
                         </div>
                         <div className="flex flex-wrap justify-center lg:justify-start gap-8 border-t border-stone-800 pt-8">
                             <div>
-                                <h3 className="text-3xl font-display font-bold text-white">500+</h3>
+                                <h3 className="text-3xl font-display font-bold text-white">{platformStats.co2Saved > 0 ? platformStats.co2Saved + '+' : '12+'}</h3>
                                 <p className="text-stone-400 text-sm">CO2 Tonnes Saved</p>
                             </div>
                             <div>
-                                <h3 className="text-3xl font-display font-bold text-white">200+</h3>
+                                <h3 className="text-3xl font-display font-bold text-white">{platformStats.businessesCount > 0 ? platformStats.businessesCount + '+' : '15+'}</h3>
                                 <p className="text-stone-400 text-sm">Green Businesses</p>
                             </div>
                             <div>
-                                <h3 className="text-3xl font-display font-bold text-white">50+</h3>
+                                <h3 className="text-3xl font-display font-bold text-white">{platformStats.sitesCount > 0 ? platformStats.sitesCount + '+' : '8+'}</h3>
                                 <p className="text-stone-400 text-sm">Sites Protected</p>
                             </div>
                         </div>
@@ -134,34 +167,92 @@ const Home = () => {
             </section>
 
             {/* HOW IT WORKS SECTION */}
-            <section id="how-it-works" className="py-24 bg-white">
+            <section id="how-it-works" className="py-24 bg-gradient-to-b from-white to-lightBg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h2 className="text-4xl font-display font-bold text-center text-primaryGreen mb-20">How CONNECT GREEN Works</h2>
+                    <div className="text-center mb-16">
+                        <span className="text-neonGreen font-semibold tracking-wider text-sm uppercase mb-3 block">Simple Process</span>
+                        <h2 className="text-4xl font-display font-bold text-primaryGreen mb-4">How CONNECT GREEN Works</h2>
+                        <p className="text-stone-600 max-w-2xl mx-auto">Three simple steps to sustainable travel. Our platform guides you from planning to impact tracking.</p>
+                    </div>
 
-                    <div className="flex flex-col md:flex-row justify-between items-start relative">
-                        {/* Connecting dashed line for desktop */}
-                        <div className="hidden md:block absolute top-[2.5rem] left-[15%] right-[15%] h-[2px] border-t-2 border-dashed border-neonGreen/40 z-0"></div>
-
-                        <div className="flex flex-col items-center text-center max-w-xs mx-auto mb-12 md:mb-0 relative z-10 bg-white px-4">
-                            <div className="w-20 h-20 bg-lightBg border-2 border-neonGreen rounded-full flex items-center justify-center text-3xl font-display font-bold text-primaryGreen mb-6 shadow-sm">1</div>
-                            <Search className="text-neonGreen mb-3" size={28} />
-                            <h3 className="text-xl font-semibold text-primaryGreen mb-2">Search Destination</h3>
-                            <p className="text-stone-500 text-sm">Enter your desired location and travel dates into our smart planner.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+                        {/* Step 1 */}
+                        <div className="relative group">
+                            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-100 hover:border-neonGreen/30 h-full">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="w-14 h-14 bg-neonGreen/10 rounded-xl flex items-center justify-center">
+                                        <Search className="text-neonGreen" size={28} />
+                                    </div>
+                                    <span className="text-5xl font-display font-bold text-stone-100 group-hover:text-neonGreen/20 transition-colors">01</span>
+                                </div>
+                                <h3 className="text-xl font-semibold text-primaryGreen mb-3">Search Destination</h3>
+                                <p className="text-stone-500 leading-relaxed text-sm">
+                                    Enter your desired location and travel dates into our AI-powered smart planner. We analyze thousands of eco-friendly options instantly.
+                                </p>
+                                <div className="mt-6 pt-6 border-t border-stone-100">
+                                    <div className="flex items-center gap-2 text-xs text-stone-400">
+                                        <div className="w-2 h-2 rounded-full bg-neonGreen"></div>
+                                        <span>AI-Powered Recommendations</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Connector line for desktop */}
+                            <div className="hidden md:block absolute top-1/2 -right-6 w-12 h-[2px] bg-gradient-to-r from-neonGreen/40 to-transparent"></div>
                         </div>
 
-                        <div className="flex flex-col items-center text-center max-w-xs mx-auto mb-12 md:mb-0 relative z-10 bg-white px-4">
-                            <div className="w-20 h-20 bg-lightBg border-2 border-neonGreen rounded-full flex items-center justify-center text-3xl font-display font-bold text-primaryGreen mb-6 shadow-sm">2</div>
-                            <CheckCircle className="text-neonGreen mb-3" size={28} />
-                            <h3 className="text-xl font-semibold text-primaryGreen mb-2">Choose Green Options</h3>
-                            <p className="text-stone-500 text-sm">Select strictly verified eco-accommodations, transport, and local food.</p>
+                        {/* Step 2 */}
+                        <div className="relative group">
+                            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-100 hover:border-neonGreen/30 h-full">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="w-14 h-14 bg-neonGreen/10 rounded-xl flex items-center justify-center">
+                                        <CheckCircle className="text-neonGreen" size={28} />
+                                    </div>
+                                    <span className="text-5xl font-display font-bold text-stone-100 group-hover:text-neonGreen/20 transition-colors">02</span>
+                                </div>
+                                <h3 className="text-xl font-semibold text-primaryGreen mb-3">Choose Green Options</h3>
+                                <p className="text-stone-500 leading-relaxed text-sm">
+                                    Select from our strictly verified eco-accommodations, sustainable transport, and local organic food partners.
+                                </p>
+                                <div className="mt-6 pt-6 border-t border-stone-100">
+                                    <div className="flex items-center gap-2 text-xs text-stone-400">
+                                        <div className="w-2 h-2 rounded-full bg-neonGreen"></div>
+                                        <span>Verified Green Badge System</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Connector line for desktop */}
+                            <div className="hidden md:block absolute top-1/2 -right-6 w-12 h-[2px] bg-gradient-to-r from-neonGreen/40 to-transparent"></div>
                         </div>
 
-                        <div className="flex flex-col items-center text-center max-w-xs mx-auto relative z-10 bg-white px-4">
-                            <div className="w-20 h-20 bg-lightBg border-2 border-neonGreen rounded-full flex items-center justify-center text-3xl font-display font-bold text-primaryGreen mb-6 shadow-sm">3</div>
-                            <Activity className="text-neonGreen mb-3" size={28} />
-                            <h3 className="text-xl font-semibold text-primaryGreen mb-2">Track Your Impact</h3>
-                            <p className="text-stone-500 text-sm">Watch your carbon footprint shrink and earn reward points for your trip.</p>
+                        {/* Step 3 */}
+                        <div className="relative group">
+                            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-100 hover:border-neonGreen/30 h-full">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="w-14 h-14 bg-neonGreen/10 rounded-xl flex items-center justify-center">
+                                        <Activity className="text-neonGreen" size={28} />
+                                    </div>
+                                    <span className="text-5xl font-display font-bold text-stone-100 group-hover:text-neonGreen/20 transition-colors">03</span>
+                                </div>
+                                <h3 className="text-xl font-semibold text-primaryGreen mb-3">Track Your Impact</h3>
+                                <p className="text-stone-500 leading-relaxed text-sm">
+                                    Watch your carbon footprint shrink in real-time. Earn green reward points and offset remaining emissions instantly.
+                                </p>
+                                <div className="mt-6 pt-6 border-t border-stone-100">
+                                    <div className="flex items-center gap-2 text-xs text-stone-400">
+                                        <div className="w-2 h-2 rounded-full bg-neonGreen"></div>
+                                        <span>Real-Time Carbon Tracking</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    {/* CTA Button */}
+                    <div className="text-center mt-12">
+                        <Link to="/planner" className="inline-flex items-center gap-2 px-8 py-4 bg-neonGreen text-darkBg font-semibold rounded-xl hover:bg-accentGreen transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] hover:-translate-y-1">
+                            Start Planning Your Green Trip
+                            <span className="text-lg">→</span>
+                        </Link>
                     </div>
                 </div>
             </section>
@@ -184,35 +275,64 @@ const Home = () => {
 
                     <div className="relative">
                         <div className="absolute -inset-4 bg-neonGreen/10 rounded-2xl blur-xl"></div>
-                        <div className="bg-deepCard border border-stone-800 rounded-xl p-6 relative z-10 shadow-2xl">
-                            <div className="flex border-b border-stone-800 pb-4 mb-4 items-center justify-between">
-                                <h3 className="text-xl font-semibold flex items-center gap-2"><MapPin size={22} className="text-neonGreen" /> Emerald Coast Reserve</h3>
-                                <span className="text-xs bg-stone-800 px-3 py-1 rounded">Live Data Central</span>
+                        {loading ? (
+                            <div className="bg-deepCard border border-stone-800 rounded-xl p-12 relative z-10 shadow-2xl text-center">
+                                <div className="w-8 h-8 border-2 border-neonGreen border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                <p className="text-stone-400">Loading nature sites...</p>
                             </div>
-
-                            <img src="https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="Reserve" className="w-full h-48 object-cover rounded-md mb-6" />
-
-                            <div className="flex items-center justify-between p-4 bg-darkBg rounded-lg border border-neonGreen/30">
-                                <div>
-                                    <p className="text-stone-400 text-sm mb-1">Current Status</p>
-                                    <p className="font-semibold text-lg flex items-center gap-2">
-                                        Good to Visit
-                                    </p>
+                        ) : natureSites.length === 0 ? (
+                            <div className="bg-deepCard border border-stone-800 rounded-xl p-6 relative z-10 shadow-2xl">
+                                <div className="flex border-b border-stone-800 pb-4 mb-4 items-center justify-between">
+                                    <h3 className="text-xl font-semibold flex items-center gap-2"><MapPin size={22} className="text-neonGreen" /> No Sites Available</h3>
+                                    <span className="text-xs bg-stone-800 px-3 py-1 rounded">Live Data</span>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    {/* Traffic Light */}
-                                    <div className="w-12 h-12 bg-stone-900 rounded-full flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
-                                        <div className="w-6 h-6 rounded-full bg-neonGreen shadow-[0_0_15px_#22C55E]">
-                                            <div className="w-full h-full rounded-full animate-ping bg-neonGreen opacity-75"></div>
+                                <p className="text-stone-400 text-center py-8">Nature conservation sites coming soon!</p>
+                            </div>
+                        ) : (
+                            natureSites.slice(0, 1).map((site, idx) => {
+                                const statusColors = {
+                                    'green': { bg: 'bg-neonGreen', text: 'Good to Visit', shadow: 'shadow-[0_0_15px_#22C55E]' },
+                                    'yellow': { bg: 'bg-yellow-500', text: 'Getting Busy', shadow: 'shadow-[0_0_15px_#eab308]' },
+                                    'red': { bg: 'bg-red-500', text: 'At Capacity', shadow: 'shadow-[0_0_15px_#ef4444]' }
+                                };
+                                const status = site.status || 'green';
+                                const statusConfig = statusColors[status] || statusColors.green;
+                                const percentage = site.maxCapacity > 0 ? Math.round((site.currentVisitors / site.maxCapacity) * 100) : 0;
+                                const imageUrl = getImageUrl(site.image) || 'https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80';
+                                
+                                return (
+                                    <div key={site._id || idx} className="bg-deepCard border border-stone-800 rounded-xl p-6 relative z-10 shadow-2xl">
+                                        <div className="flex border-b border-stone-800 pb-4 mb-4 items-center justify-between">
+                                            <h3 className="text-xl font-semibold flex items-center gap-2"><MapPin size={22} className="text-neonGreen" /> {site.name}</h3>
+                                            <span className="text-xs bg-stone-800 px-3 py-1 rounded">Live Data</span>
+                                        </div>
+
+                                        <img src={imageUrl} alt={site.name} className="w-full h-48 object-cover rounded-md mb-6" />
+
+                                        <div className="flex items-center justify-between p-4 bg-darkBg rounded-lg border border-neonGreen/30">
+                                            <div>
+                                                <p className="text-stone-400 text-sm mb-1">Current Status</p>
+                                                <p className="font-semibold text-lg flex items-center gap-2">
+                                                    {statusConfig.text}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {/* Traffic Light */}
+                                                <div className="w-12 h-12 bg-stone-900 rounded-full flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
+                                                    <div className={`w-6 h-6 rounded-full ${statusConfig.bg} ${statusConfig.shadow}`}>
+                                                        <div className={`w-full h-full rounded-full animate-ping ${statusConfig.bg} opacity-75`}></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex justify-between text-sm text-stone-400">
+                                            <span>Visitors: {site.currentVisitors || 0} / {site.maxCapacity || 400}</span>
+                                            <span>{percentage}% Capacity</span>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            <div className="mt-4 flex justify-between text-sm text-stone-400">
-                                <span>Visitors: 120 / 400</span>
-                                <span>Updated: Just now</span>
-                            </div>
-                        </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
             </section>
@@ -350,23 +470,46 @@ const Home = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {mockBusinesses.map((biz, idx) => (
-                            <div key={idx} className="bg-white border text-stone-800 border-stone-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
-                                <img src={biz.img} alt={biz.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
-                                <div className="p-6">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="text-xl font-semibold">{biz.name}</h3>
-                                        <BadgeCheck color={biz.color} size={24} className="drop-shadow-sm" />
-                                    </div>
-                                    <p className="text-sm font-medium text-stone-500 mb-4">{biz.category}</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-xs px-2.5 py-1 rounded bg-stone-100 font-bold`} style={{ color: biz.color, border: `1px solid ${biz.color}` }}>
-                                            {biz.badge} Certified
-                                        </span>
-                                    </div>
-                                </div>
+                        {loading ? (
+                            <div className="col-span-3 text-center py-12">
+                                <div className="w-8 h-8 border-2 border-neonGreen border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                <p className="text-stone-500">Loading eco-partners...</p>
                             </div>
-                        ))}
+                        ) : businesses.length === 0 ? (
+                            <div className="col-span-3 text-center py-12 border-2 border-dashed border-stone-200 rounded-xl">
+                                <p className="text-stone-500">No eco-partners found yet. Check back soon!</p>
+                            </div>
+                        ) : (
+                            businesses.slice(0, 6).map((biz, idx) => {
+                                const badgeColors = {
+                                    'platinum': '#4ADE80',
+                                    'gold': '#FFD700',
+                                    'silver': '#C0C0C0',
+                                    'bronze': '#CD7F32',
+                                    'pending': '#9CA3AF'
+                                };
+                                const color = badgeColors[biz.badgeStatus?.toLowerCase()] || '#4ADE80';
+                                const imageUrl = getImageUrl(biz.image) || 'https://images.unsplash.com/photo-1587061949409-02df41d5e562?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60';
+                                
+                                return (
+                                    <div key={biz._id || idx} className="bg-white border text-stone-800 border-stone-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                                        <img src={imageUrl} alt={biz.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        <div className="p-6">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h3 className="text-xl font-semibold">{biz.name}</h3>
+                                                <BadgeCheck color={color} size={24} className="drop-shadow-sm" />
+                                            </div>
+                                            <p className="text-sm font-medium text-stone-500 mb-4">{biz.category}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-xs px-2.5 py-1 rounded bg-stone-100 font-bold capitalize`} style={{ color: color, border: `1px solid ${color}` }}>
+                                                    {biz.badgeStatus || 'Green'} Certified
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                     <div className="mt-8 text-center sm:hidden">
                         <Link to="/businesses" className="inline-block px-6 py-2.5 w-full text-primaryGreen border border-primaryGreen font-semibold rounded hover:bg-lightBg transition-colors">

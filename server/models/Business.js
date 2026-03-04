@@ -48,6 +48,25 @@ const businessSchema = new mongoose.Schema({
         max: [5, 'Rating cannot exceed 5'],
         default: 5
     },
+    lat: {
+        type: Number,
+        default: null
+    },
+    lng: {
+        type: Number,
+        default: null
+    },
+    geoLocation: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number],
+            default: [0, 0]
+        }
+    },
     greenCriteria: {
         renewableEnergyPercent: {
             type: Number,

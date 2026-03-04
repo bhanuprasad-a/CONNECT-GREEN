@@ -8,6 +8,9 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 const Dashboard = () => {
     const { user, loading } = useContext(AuthContext);
 
+    console.log('Dashboard - user:', user);
+    console.log('Dashboard - user.role:', user?.role);
+
     if (loading) return <div className="min-h-screen text-white pt-32 text-center">Loading Data...</div>;
     if (!user) return <div className="min-h-screen text-white pt-32 text-center">Not Authorized. Please login.</div>;
 
@@ -18,9 +21,14 @@ const Dashboard = () => {
                 <div className="bg-deepCard p-8 rounded-xl border border-stone-800 shadow-xl mb-8 flex justify-between items-center">
                     <div>
                         <h2 className="text-3xl font-display font-bold text-white mb-2">Welcome, {user.name}</h2>
-                        <span className="text-sm font-semibold text-neonGreen uppercase tracking-wider bg-stone-800 px-3 py-1 rounded">
-                            {user.role} Account
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-neonGreen uppercase tracking-wider bg-stone-800 px-3 py-1 rounded">
+                                {user.role || 'NO ROLE'} Account
+                            </span>
+                            <span className="text-xs text-stone-500">
+                                (Debug: role={user.role})
+                            </span>
+                        </div>
                     </div>
                     {user.role === 'tourist' && (
                         <div className="text-right">
@@ -616,13 +624,42 @@ const AdminView = () => {
 /* --- SITE MANAGER VIEW (Update Live Capacity) --- */
 const SiteManagerView = () => {
     const [sites, setSites] = useState([]);
+    const [stats, setStats] = useState({
+        totalSites: 0,
+        totalCapacity: 0,
+        currentVisitors: 0,
+        avgUtilization: 0,
+        greenSites: 0,
+        yellowSites: 0,
+        redSites: 0
+    });
 
     useEffect(() => {
         const fetchSites = async () => {
             try {
                 // Should be GET /api/sites/me, but fetching all for demonstration
                 const res = await api.get('/sites');
-                setSites(res.data);
+                const userSites = res.data; // In production, filter by manager ID
+                setSites(userSites);
+                
+                // Calculate stats
+                const totalSites = userSites.length;
+                const totalCapacity = userSites.reduce((sum, site) => sum + site.maxCapacity, 0);
+                const currentVisitors = userSites.reduce((sum, site) => sum + site.currentVisitors, 0);
+                const avgUtilization = totalCapacity > 0 ? Math.round((currentVisitors / totalCapacity) * 100) : 0;
+                const greenSites = userSites.filter(site => site.status === 'green').length;
+                const yellowSites = userSites.filter(site => site.status === 'yellow').length;
+                const redSites = userSites.filter(site => site.status === 'red').length;
+                
+                setStats({
+                    totalSites,
+                    totalCapacity,
+                    currentVisitors,
+                    avgUtilization,
+                    greenSites,
+                    yellowSites,
+                    redSites
+                });
             } catch (err) {
                 console.error("Site Manager view failed", err);
             }
@@ -636,7 +673,40 @@ const SiteManagerView = () => {
             toast.success("Visitor count successfully updated.");
 
             // Local state update
-            setSites(sites.map(site => site._id === id ? { ...site, currentVisitors: parseInt(newCount) } : site));
+            const updatedSites = sites.map(site => {
+                if (site._id === id) {
+                    const updatedSite = { ...site, currentVisitors: parseInt(newCount) };
+                    // Recalculate status based on new visitor count
+                    if (updatedSite.currentVisitors >= updatedSite.maxCapacity) {
+                        updatedSite.status = 'red';
+                    } else if (updatedSite.currentVisitors >= updatedSite.maxCapacity * 0.75) {
+                        updatedSite.status = 'yellow';
+                    } else {
+                        updatedSite.status = 'green';
+                    }
+                    return updatedSite;
+                }
+                return site;
+            });
+            
+            setSites(updatedSites);
+            
+            // Recalculate stats
+            const totalCapacity = updatedSites.reduce((sum, site) => sum + site.maxCapacity, 0);
+            const currentVisitors = updatedSites.reduce((sum, site) => sum + site.currentVisitors, 0);
+            const avgUtilization = totalCapacity > 0 ? Math.round((currentVisitors / totalCapacity) * 100) : 0;
+            const greenSites = updatedSites.filter(site => site.status === 'green').length;
+            const yellowSites = updatedSites.filter(site => site.status === 'yellow').length;
+            const redSites = updatedSites.filter(site => site.status === 'red').length;
+            
+            setStats(prev => ({
+                ...prev,
+                currentVisitors,
+                avgUtilization,
+                greenSites,
+                yellowSites,
+                redSites
+            }));
 
         } catch (error) {
             toast.error("Failed to update visitor count.");
@@ -644,47 +714,154 @@ const SiteManagerView = () => {
     };
 
     return (
-        <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
-            <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
-                <CheckCircle className="text-neonGreen" /> My Managed Sites Dashboard
-            </h3>
-
-            {sites.length === 0 ? (
-                <div className="text-center py-12 text-stone-500">
-                    You do not dynamically manage any nature conservation sites yet. Contact platform administration to register a new conservation zone.
+        <div className="space-y-8">
+            {/* Site Manager Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-deepCard p-6 rounded-xl border border-stone-800 flex items-center gap-4 group hover:border-neonGreen/50 transition-colors">
+                    <div className="p-4 bg-darkBg rounded-full border border-stone-800 group-hover:border-neonGreen text-neonGreen transition-colors">
+                        <Map size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Managed Sites</h3>
+                        <p className="text-3xl font-display font-bold text-white leading-none">{stats.totalSites}</p>
+                    </div>
                 </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {sites.map(site => (
-                        <div key={site._id} className="bg-darkBg border border-stone-700 rounded-lg p-6">
-                            <h4 className="text-lg font-bold text-white mb-1">{site.name}</h4>
-                            <p className="text-sm text-stone-500 mb-6">{site.location}</p>
 
-                            <div className="flex justify-between items-end mb-2">
-                                <span className="text-xs uppercase font-semibold text-stone-400">Current Visitors</span>
-                                <span className="text-xs uppercase font-semibold text-stone-400">Max Cap: {site.maxCapacity}</span>
-                            </div>
+                <div className="bg-deepCard p-6 rounded-xl border border-stone-800 flex items-center gap-4 group hover:border-neonGreen/50 transition-colors">
+                    <div className="p-4 bg-darkBg rounded-full border border-stone-800 group-hover:border-neonGreen text-neonGreen transition-colors">
+                        <Users size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Current Visitors</h3>
+                        <p className="text-3xl font-display font-bold text-white leading-none">{stats.currentVisitors}</p>
+                    </div>
+                </div>
 
-                            <div className="flex items-center gap-4">
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max={site.maxCapacity}
-                                    defaultValue={site.currentVisitors}
-                                    className="bg-deepCard border border-stone-600 rounded px-3 py-2 text-white w-full focus:border-neonGreen outline-none font-bold text-xl"
-                                    onBlur={(e) => handleUpdateCapacity(site._id, e.target.value)}
-                                />
-                                <button onClick={(e) => handleUpdateCapacity(site._id, e.target.previousSibling.value)} className="bg-neonGreen text-darkBg px-4 py-2 rounded font-semibold whitespace-nowrap hover:bg-accentGreen transition-colors">
-                                    Sync Live
-                                </button>
-                            </div>
-                            <p className="text-xs text-stone-500 mt-3 text-center">
-                                Entering a number and clicking Sync live updates the Traffic Light widget across all applications.
-                            </p>
+                <div className="bg-deepCard p-6 rounded-xl border border-stone-800 flex items-center gap-4 group hover:border-neonGreen/50 transition-colors">
+                    <div className="p-4 bg-darkBg rounded-full border border-stone-800 group-hover:border-neonGreen text-neonGreen transition-colors">
+                        <Activity size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Avg Utilization</h3>
+                        <p className="text-3xl font-display font-bold text-neonGreen leading-none">{stats.avgUtilization}%</p>
+                    </div>
+                </div>
+
+                <div className="bg-deepCard p-6 rounded-xl border border-stone-800 flex items-center gap-4 group hover:border-neonGreen/50 transition-colors">
+                    <div className="p-4 bg-darkBg rounded-full border border-stone-800 group-hover:border-neonGreen text-neonGreen transition-colors">
+                        <TreePine size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Total Capacity</h3>
+                        <p className="text-3xl font-display font-bold text-white leading-none">{stats.totalCapacity}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Site Status Overview */}
+            <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
+                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
+                    <CheckCircle className="text-neonGreen" /> Site Status Overview
+                </h3>
+                
+                <div className="grid grid-cols-3 gap-6 mb-8">
+                    <div className="text-center">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-green-500">{stats.greenSites}</span>
                         </div>
-                    ))}
+                        <h4 className="text-green-500 font-semibold">Available</h4>
+                        <p className="text-stone-400 text-sm">Perfect time to visit</p>
+                    </div>
+                    <div className="text-center">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-yellow-500/20 border-2 border-yellow-500 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-yellow-500">{stats.yellowSites}</span>
+                        </div>
+                        <h4 className="text-yellow-500 font-semibold">Busy</h4>
+                        <p className="text-stone-400 text-sm">Consider alternatives</p>
+                    </div>
+                    <div className="text-center">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-red-500">{stats.redSites}</span>
+                        </div>
+                        <h4 className="text-red-500 font-semibold">At Capacity</h4>
+                        <p className="text-stone-400 text-sm">Conservation halted</p>
+                    </div>
                 </div>
-            )}
+            </div>
+
+            {/* Live Capacity Management */}
+            <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
+                <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
+                    <ShieldCheck className="text-neonGreen" /> Live Capacity Management
+                </h3>
+
+                {sites.length === 0 ? (
+                    <div className="text-center py-12 text-stone-500">
+                        You do not dynamically manage any nature conservation sites yet. Contact platform administration to register a new conservation zone.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {sites.map(site => (
+                            <div key={site._id} className="bg-darkBg border border-stone-700 rounded-lg p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h4 className="text-lg font-bold text-white mb-1">{site.name}</h4>
+                                        <p className="text-sm text-stone-500">{site.location}</p>
+                                    </div>
+                                    <div className={`w-4 h-4 rounded-full ${
+                                        site.status === 'green' ? 'bg-green-500 shadow-[0_0_10px_#22C55E]' :
+                                        site.status === 'yellow' ? 'bg-yellow-500 shadow-[0_0_10px_#eab308]' :
+                                        'bg-red-500 shadow-[0_0_10px_#ef4444]'
+                                    }`}></div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <span className="text-xs uppercase font-semibold text-stone-400">Current Visitors</span>
+                                        <span className="text-xs uppercase font-semibold text-stone-400">Max Cap: {site.maxCapacity}</span>
+                                    </div>
+                                    <div className="w-full bg-stone-800 rounded-full h-2 overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-1000 ${
+                                                site.status === 'green' ? 'bg-green-500' :
+                                                site.status === 'yellow' ? 'bg-yellow-500' :
+                                                'bg-red-500'
+                                            }`}
+                                            style={{ width: `${Math.min(Math.round((site.currentVisitors / site.maxCapacity) * 100), 100)}%` }}
+                                        ></div>
+                                    </div>
+                                    <p className="text-xs text-stone-500 mt-2 text-center">
+                                        {Math.round((site.currentVisitors / site.maxCapacity) * 100)}% utilized
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={site.maxCapacity}
+                                        defaultValue={site.currentVisitors}
+                                        className="bg-deepCard border border-stone-600 rounded px-3 py-2 text-white w-full focus:border-neonGreen outline-none font-bold"
+                                        onBlur={(e) => handleUpdateCapacity(site._id, e.target.value)}
+                                    />
+                                    <button 
+                                        onClick={(e) => {
+                                            const input = e.target.parentElement.querySelector('input');
+                                            handleUpdateCapacity(site._id, input.value);
+                                        }}
+                                        className="bg-neonGreen text-darkBg px-4 py-2 rounded font-semibold whitespace-nowrap hover:bg-accentGreen transition-colors text-sm"
+                                    >
+                                        Sync Live
+                                    </button>
+                                </div>
+                                <p className="text-xs text-stone-500 mt-3 text-center">
+                                    Update visitor count and click Sync Live to update traffic light status
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

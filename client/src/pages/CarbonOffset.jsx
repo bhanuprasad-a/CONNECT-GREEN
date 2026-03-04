@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Leaf, Globe, TreePine, Wind, Zap, CheckCircle, Calculator, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const CarbonOffsets = () => {
     const { user } = useContext(AuthContext);
@@ -13,26 +14,30 @@ const CarbonOffsets = () => {
     const [selectedProject, setSelectedProject] = useState(null);
     const [offsetAmount, setOffsetAmount] = useState(50); // kg
 
+    const formatINR = (amount) => {
+        try {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+        } catch {
+            return `₹${Math.round(amount)}`;
+        }
+    };
+
     useEffect(() => {
         const fetchProjects = async () => {
             try {
-                const res = await api.get('/api/offsets');
-                setProjects(res.data);
+                const res = await api.get('/offsets');
+                setProjects(Array.isArray(res.data) ? res.data : []);
 
                 // If logged in, fetch personal history for stats
                 if (user) {
-                    const history = await api.get('/api/offsets/my-history');
-                    const total = history.data.reduce((acc, curr) => acc + curr.amountOffset, 0);
-                    setStats({ totalOffset: total, projectsBuilt: history.data.length });
+                    const history = await api.get('/offsets/my-history');
+                    const historyRows = Array.isArray(history.data) ? history.data : [];
+                    const total = historyRows.reduce((acc, curr) => acc + (curr.amountOffset || 0), 0);
+                    setStats({ totalOffset: total, projectsBuilt: historyRows.length });
                 }
             } catch (error) {
-                console.error("Failed to fetch offset projects", error);
-                // Fallback mock projects if API fails or empty
-                setProjects([
-                    { _id: '1', name: 'Amazon Reforestation', organization: 'GreenEarth', description: 'Restoring native species in the Brazilian rainforest to capture carbon and protect biodiversity.', type: 'reforestation', costPerKg: 0.15, location: 'Brazil', image: 'https://images.unsplash.com/photo-1511497584788-8767fe771d21?w=800' },
-                    { _id: '2', name: 'Sahara Solar Farm', organization: 'SunFuture', description: 'Developing massive solar arrays to displace coal-fired power plants across North Africa.', type: 'renewable', costPerKg: 0.10, location: 'Morocco', image: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800' },
-                    { _id: '3', name: 'Community Wind Turbines', organization: 'WindWays', description: 'Providing clean energy to rural communities while creating local maintenance jobs.', type: 'renewable', costPerKg: 0.12, location: 'India', image: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=800' }
-                ]);
+                console.error('Failed to fetch offset projects', error);
+                setProjects([]);
             } finally {
                 setLoading(false);
             }
@@ -52,7 +57,7 @@ const CarbonOffsets = () => {
 
         try {
             toast.loading("Processing your contribution...", { id: 'purchase' });
-            await api.post('/api/offsets/purchase', {
+            await api.post('/offsets/purchase', {
                 projectId: selectedProject._id,
                 amountOffset: offsetAmount
             });
@@ -144,7 +149,7 @@ const CarbonOffsets = () => {
                                 >
                                     <div className="flex flex-col md:flex-row">
                                         <div className="md:w-1/3 h-48 md:h-auto overflow-hidden">
-                                            <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                            <img src={getImageUrl(p.image) || p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                         </div>
                                         <div className="md:w-2/3 p-6 flex flex-col justify-between">
                                             <div>
@@ -154,7 +159,7 @@ const CarbonOffsets = () => {
                                                         <p className="text-sm text-neonGreen font-medium">{p.organization}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-lg font-display font-bold text-white">${p.costPerKg.toFixed(2)}</p>
+                                                        <p className="text-lg font-display font-bold text-white">{formatINR(p.costPerKg)}</p>
                                                         <p className="text-[10px] text-stone-500 uppercase font-bold">Per kg CO2</p>
                                                     </div>
                                                 </div>
@@ -215,7 +220,7 @@ const CarbonOffsets = () => {
                                     <div className="bg-deepCard p-6 rounded-xl border border-stone-800 text-center">
                                         <p className="text-xs text-stone-500 uppercase tracking-widest font-bold mb-1">Total Contribution</p>
                                         <p className="text-4xl font-display font-bold text-white mb-4">
-                                            ${(offsetAmount * selectedProject.costPerKg).toFixed(2)}
+                                            {formatINR(offsetAmount * selectedProject.costPerKg)}
                                         </p>
                                         <button
                                             onClick={handlePurchase}

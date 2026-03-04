@@ -30,6 +30,25 @@ const natureSiteSchema = new mongoose.Schema({
     image: {
         type: String,
         default: 'no-photo.jpg'
+    },
+    lat: {
+        type: Number,
+        default: null
+    },
+    lng: {
+        type: Number,
+        default: null
+    },
+    geoLocation: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number],
+            default: [0, 0]
+        }
     }
 }, {
     timestamps: true

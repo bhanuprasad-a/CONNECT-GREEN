@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = (userData, token) => {
+        console.log('AuthContext login - userData:', userData);
         localStorage.setItem('token', token);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(userData);

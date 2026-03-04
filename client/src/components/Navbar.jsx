@@ -15,7 +15,7 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="fixed top-0 left-0 w-full z-50 border-b border-white/5 bg-darkBg/80 backdrop-blur-md py-4 shadow-sm">
+        <nav id="main-navbar" className="fixed top-0 left-0 w-full z-50 border-b border-white/5 bg-darkBg/80 backdrop-blur-md shadow-sm h-[65px] flex items-center">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center">
 
@@ -27,33 +27,38 @@ const Navbar = () => {
                         </span>
                     </Link>
 
-                    {/* Desktop Navigation Links */}
-                    <div className="hidden md:flex space-x-8 items-center">
-                        <Link to="/planner" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Trip Planner</Link>
-                        <Link to="/businesses" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Businesses</Link>
-                        <Link to="/sites" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Nature Sites</Link>
-                        <Link to="/offset" className="text-stone-300 hover:text-neonGreen transition-colors font-medium flex items-center gap-1"><Leaf size={14} className="text-neonGreen" /> Offset</Link>
-                        <Link to="/recycling" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Recycling</Link>
-                        {/* Auth Buttons */}
-                        {user ? (
-                            <div className="flex items-center gap-4 ml-4">
-                                <Link to="/dashboard" className="text-sm text-neonGreen font-semibold hover:text-accentGreen">
-                                    {user.name} ({user.role})
-                                </Link>
-                                <button onClick={handleLogout} className="px-5 py-2 rounded font-semibold transition-all border border-neonGreen/50 text-white hover:bg-neonGreen/10">
-                                    Logout
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-4 ml-4">
-                                <Link to="/login" className="px-5 py-2 rounded font-semibold transition-all border border-neonGreen text-white hover:bg-neonGreen/10">
-                                    Login
-                                </Link>
-                                <Link to="/register" className="px-5 py-2 rounded font-semibold transition-all bg-neonGreen text-darkBg hover:bg-accentGreen shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-                                    Sign Up
-                                </Link>
-                            </div>
-                        )}
+                    {/* Desktop Navigation Links — with spacer from logo */}
+                    <div className="hidden md:flex items-center gap-0">
+                        {/* Visual divider */}
+                        <div className="w-px h-5 bg-white/10 mx-6"></div>
+                        {/* Nav links */}
+                        <div className="flex space-x-7 items-center">
+                            <Link to="/planner" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Trip Planner</Link>
+                            <Link to="/businesses" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Businesses</Link>
+                            <Link to="/sites" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Nature Sites</Link>
+                            <Link to="/offset" className="text-stone-300 hover:text-neonGreen transition-colors font-medium flex items-center gap-1"><Leaf size={14} className="text-neonGreen" /> Offset</Link>
+                            <Link to="/recycling" className="text-stone-300 hover:text-neonGreen transition-colors font-medium">Recycling</Link>
+                            {/* Auth Buttons */}
+                            {user ? (
+                                <div className="flex items-center gap-4 ml-4">
+                                    <Link to="/dashboard" className="text-sm text-neonGreen font-semibold hover:text-accentGreen">
+                                        {user.name} ({user.role})
+                                    </Link>
+                                    <button onClick={handleLogout} className="px-5 py-2 rounded font-semibold transition-all border border-neonGreen/50 text-white hover:bg-neonGreen/10">
+                                        Logout
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4 ml-4">
+                                    <Link to="/login" className="px-5 py-2 rounded font-semibold transition-all border border-neonGreen text-white hover:bg-neonGreen/10">
+                                        Login
+                                    </Link>
+                                    <Link to="/register" className="px-5 py-2 rounded font-semibold transition-all bg-neonGreen text-darkBg hover:bg-accentGreen shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+                                        Sign Up
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Mobile Menu Button */}
@@ -64,7 +69,6 @@ const Navbar = () => {
                     </div>
                 </div>
             </div>
-
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
                 <div className="md:hidden absolute top-full left-0 w-full bg-deepCard border-b border-neonGreen/30 shadow-xl py-4 flex flex-col items-center gap-4">

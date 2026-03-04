@@ -9,7 +9,7 @@ const recyclingCenterSchema = new mongoose.Schema({
     },
     acceptedWaste: [{
         type: String,
-        enum: ['plastic', 'e-waste', 'glass', 'paper', 'batteries', 'metal', 'organic']
+        enum: ['plastic', 'e-waste', 'glass', 'paper', 'batteries', 'metal', 'organic', 'cardboard']
     }],
     operatingHours: {
         open: String, // e.g., "09:00"

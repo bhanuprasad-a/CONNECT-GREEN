@@ -17,10 +17,13 @@ const Login = () => {
         e.preventDefault();
         try {
             const res = await api.post('/auth/login', { email, password });
+            console.log('Login response:', res.data);
+            console.log('User role:', res.data.role);
             login(res.data, res.data.token);
-            toast.success('Successfully logged in!');
+            toast.success(`Logged in as ${res.data.role}!`);
             navigate('/dashboard');
         } catch (error) {
+            console.error('Login error:', error);
             toast.error(error.response?.data?.message || 'Login failed');
         }
     };

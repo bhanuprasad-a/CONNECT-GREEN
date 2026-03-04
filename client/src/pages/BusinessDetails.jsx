@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 import { MapPin, Star, BadgeCheck, ShieldCheck, ChevronLeft, Leaf, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const BusinessDetails = () => {
     const { id } = useParams();
@@ -88,7 +89,7 @@ const BusinessDetails = () => {
             {/* Hero Banner */}
             <div className="relative h-96 w-full object-cover">
                 <div className="absolute inset-0 bg-gradient-to-t from-darkBg via-darkBg/60 to-transparent z-10 w-full h-full"></div>
-                <img src={business.image || 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=1000'} alt={business.name} className="w-full h-full object-cover" />
+                <img src={getImageUrl(business.image) || 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=1000'} alt={business.name} className="w-full h-full object-cover" />
 
                 <div className="absolute top-6 left-6 z-20">
                     <Link to="/businesses" className="flex items-center gap-1 text-white bg-black/50 backdrop-blur pl-2 pr-4 py-1.5 rounded-full text-sm font-semibold hover:bg-neonGreen hover:text-darkBg transition-all">

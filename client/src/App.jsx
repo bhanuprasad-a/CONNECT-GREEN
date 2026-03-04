@@ -32,7 +32,7 @@ function App() {
 
                     <Navbar />
 
-                    <main>
+                    <main className="pt-[65px]">
                         <Routes>
                             <Route path="/" element={<Home />} />
                             <Route path="/planner" element={<TripPlanner />} />

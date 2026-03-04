@@ -2,7 +2,25 @@ const Business = require('../models/Business');
 
 const getBusinesses = async (req, res) => {
     try {
-        const businesses = await Business.find(req.query).populate('owner', 'name email');
+        // Build a safe query from allowed filter params only (prevents NoSQL injection)
+        const filter = {};
+        const { badgeStatus, category, isVerified, search } = req.query;
+
+        if (badgeStatus) filter.badgeStatus = badgeStatus;
+        if (category) filter.category = category;
+        if (isVerified !== undefined) filter.isVerified = isVerified === 'true';
+        if (search) {
+            filter.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { location: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+            ];
+        }
+
+        const businesses = await Business.find(filter)
+            .populate('owner', 'name email')
+            .sort({ createdAt: -1 });
+
         res.json(businesses);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -24,8 +42,8 @@ const getBusinessById = async (req, res) => {
 
 const createBusiness = async (req, res) => {
     try {
-        // Extract image URL from local Multer upload
-        const imageData = req.file ? { image: '/uploads/' + req.file.filename } : {};
+        // Extract image URL from Cloudinary upload (req.file.path is the full URL)
+        const imageData = req.file ? { image: req.file.path } : {};
 
         let parsedGreenCriteria = {};
         if (req.body.greenCriteria) {
@@ -61,8 +79,8 @@ const updateBusiness = async (req, res) => {
             return res.status(401).json({ message: 'Not authorized to update this business' });
         }
 
-        // Extract image URL from local Multer upload if file was uploaded during edit
-        const imageData = req.file ? { image: '/uploads/' + req.file.filename } : {};
+        // Extract image URL from Cloudinary upload if file was uploaded during edit
+        const imageData = req.file ? { image: req.file.path } : {};
 
         business = await Business.findByIdAndUpdate(
             req.params.id,
