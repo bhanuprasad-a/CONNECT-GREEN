@@ -1,24 +1,30 @@
 const Trip = require('../models/Trip');
+const { respondWithApiError } = require('../utils/apiError');
 
 const getTrips = async (req, res) => {
     try {
-        const trips = await Trip.find({ user: req.user._id }).populate('selectedBusinesses');
+        const trips = await Trip.find({ user: req.user._id })
+            .populate('selectedBusinesses')
+            .sort({ createdAt: -1 })
+            .lean();
         res.json(trips);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'trip.list');
     }
 };
 
 const getTripById = async (req, res) => {
     try {
-        const trip = await Trip.findById(req.params.id).populate('selectedBusinesses');
+        const trip = await Trip.findById(req.params.id)
+            .populate('selectedBusinesses')
+            .lean();
         if (trip && trip.user.toString() === req.user._id.toString()) {
             res.json(trip);
         } else {
             res.status(404).json({ message: 'Trip not found or unauthorized' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'trip.get');
     }
 };
 
@@ -54,7 +60,7 @@ const createTrip = async (req, res) => {
         const createdTrip = await trip.save();
         res.status(201).json(createdTrip);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'trip.create');
     }
 };
 
@@ -73,7 +79,7 @@ const deleteTrip = async (req, res) => {
         await Trip.findByIdAndDelete(req.params.id);
         res.json({ message: 'Trip removed' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'trip.delete');
     }
 };
 

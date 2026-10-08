@@ -4,8 +4,8 @@ export const getImageUrl = (imagePath) => {
     // External URLs
     if (typeof imagePath === 'string' && imagePath.startsWith('http')) return imagePath;
 
-    // Build backend origin from VITE_API_URL (prod) or localhost (dev)
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    // Relative URLs use the current origin in local development and same-origin deployments.
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
     const backendOrigin = apiBase.replace(/\/api\/?$/, '');
 
     // Local uploads paths

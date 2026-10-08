@@ -1,15 +1,14 @@
 import { useState, useContext, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Camera, Send, ShieldCheck, CheckCircle, XCircle, TreePine, Map, FileText } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const Dashboard = () => {
     const { user, loading } = useContext(AuthContext);
-
-    console.log('Dashboard - user:', user);
-    console.log('Dashboard - user.role:', user?.role);
 
     if (loading) return <div className="min-h-screen text-white pt-32 text-center">Loading Data...</div>;
     if (!user) return <div className="min-h-screen text-white pt-32 text-center">Not Authorized. Please login.</div>;
@@ -23,10 +22,7 @@ const Dashboard = () => {
                         <h2 className="text-3xl font-display font-bold text-white mb-2">Welcome, {user.name}</h2>
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-neonGreen uppercase tracking-wider bg-stone-800 px-3 py-1 rounded">
-                                {user.role || 'NO ROLE'} Account
-                            </span>
-                            <span className="text-xs text-stone-500">
-                                (Debug: role={user.role})
+                                {user.role || 'Tourist'} Account
                             </span>
                         </div>
                     </div>
@@ -50,34 +46,38 @@ const Dashboard = () => {
 
 /* --- TOURIST VIEW (Carbon Tracking & History) --- */
 const TouristView = () => {
-    const [chartData, setChartData] = useState([
-        { month: 'Aug', offset: 12 },
-        { month: 'Sep', offset: 25 },
-        { month: 'Oct', offset: 18 },
-        { month: 'Nov', offset: 45 },
-        { month: 'Dec', offset: 60 },
-        { month: 'Jan', offset: 85 }
-    ]);
+    const [chartData, setChartData] = useState([]);
     const [pastTrips, setPastTrips] = useState([]);
+    const [offsetStats, setOffsetStats] = useState({ totalKg: 0, records: 0 });
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const res = await api.get('/trips', {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
-
-                if (res.data) {
-                    setPastTrips(res.data.trips || res.data);
-                    if (res.data.chartData) {
-                        setChartData(res.data.chartData);
-                    }
+                const [tripsResult, offsetsResult] = await Promise.allSettled([
+                    api.get('/trips'),
+                    api.get('/offsets/my-history'),
+                ]);
+                if (tripsResult.status === 'fulfilled') {
+                    const trips = Array.isArray(tripsResult.value.data) ? tripsResult.value.data : [];
+                    setPastTrips(trips);
+                    const monthlyTotals = new Map();
+                    trips.forEach((trip) => {
+                        const date = new Date(trip.createdAt);
+                        const amount = Number(trip.carbonSaved) || 0;
+                        if (Number.isNaN(date.getTime())) return;
+                        const month = date.toLocaleDateString('en', { month: 'short', year: '2-digit' });
+                        monthlyTotals.set(month, (monthlyTotals.get(month) || 0) + amount);
+                    });
+                    setChartData(Array.from(monthlyTotals, ([month, offset]) => ({ month, offset })));
+                }
+                if (offsetsResult.status === 'fulfilled' && Array.isArray(offsetsResult.value.data)) {
+                    const rows = offsetsResult.value.data;
+                    setOffsetStats({
+                        totalKg: rows.reduce((sum, row) => sum + (Number(row.amountOffset) || 0), 0),
+                        records: rows.length,
+                    });
                 }
             } catch (error) {
-                console.error("Error fetching trip history:", error);
                 toast.error("Could not load your trip history.");
             }
         };
@@ -94,8 +94,8 @@ const TouristView = () => {
                         <Map size={24} />
                     </div>
                     <div>
-                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Total Trips</h3>
-                        <p className="text-3xl font-display font-bold text-white leading-none">3</p>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Saved Trips</h3>
+                        <p className="text-3xl font-display font-bold text-white leading-none">{pastTrips.length}</p>
                     </div>
                 </div>
 
@@ -104,8 +104,8 @@ const TouristView = () => {
                         <TreePine size={24} />
                     </div>
                     <div>
-                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Carbon Offset</h3>
-                        <p className="text-3xl font-display font-bold text-neonGreen leading-none">130 <span className="text-sm text-stone-500 font-normal">kg CO2</span></p>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Demo Offset Records</h3>
+                        <p className="text-3xl font-display font-bold text-neonGreen leading-none">{offsetStats.totalKg} <span className="text-sm text-stone-500 font-normal">kg recorded</span></p>
                     </div>
                 </div>
 
@@ -114,8 +114,8 @@ const TouristView = () => {
                         <FileText size={24} />
                     </div>
                     <div>
-                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Reviews Left</h3>
-                        <p className="text-3xl font-display font-bold text-white leading-none">0</p>
+                        <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Demo Contributions</h3>
+                        <p className="text-3xl font-display font-bold text-white leading-none">{offsetStats.records}</p>
                     </div>
                 </div>
             </div>
@@ -126,12 +126,12 @@ const TouristView = () => {
                 {/* Left: Carbon Chart */}
                 <div className="lg:col-span-2 bg-deepCard p-8 rounded-xl border border-stone-800">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-display font-bold text-white">Carbon Savings History</h3>
-                        <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Past 6 Months</span>
+                        <h3 className="text-xl font-display font-bold text-white">Recorded Trip Estimates</h3>
+                        <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Based on saved trips</span>
                     </div>
 
                     <div className="h-72 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                        {chartData.length > 0 ? <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorOffset" x1="0" y1="0" x2="0" y2="1">
@@ -148,7 +148,7 @@ const TouristView = () => {
                                 />
                                 <Area type="monotone" dataKey="offset" stroke="#22C55E" strokeWidth={3} fillOpacity={1} fill="url(#colorOffset)" />
                             </AreaChart>
-                        </ResponsiveContainer>
+                        </ResponsiveContainer> : <div className="h-full flex items-center justify-center text-sm text-stone-500">Save a trip to see its recorded estimate here.</div>}
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-stone-800">
@@ -157,9 +157,9 @@ const TouristView = () => {
                                 <h4 className="text-white font-bold font-display text-lg mb-1">Passionate about Nature Conservation?</h4>
                                 <p className="text-stone-400 text-sm max-w-md">Become a Conservation Site Manager. Apply now to get access to custom dashboard tools to control visitor statuses!</p>
                             </div>
-                            <a href="/apply-site-manager" className="bg-stone-800 hover:bg-stone-700 text-white font-semibold py-2 px-6 rounded border border-stone-700 transition-colors whitespace-nowrap text-sm h-fit">
+                            <Link to="/apply-site-manager" className="bg-stone-800 hover:bg-stone-700 text-white font-semibold py-2 px-6 rounded border border-stone-700 transition-colors whitespace-nowrap text-sm h-fit">
                                 Apply as Site Manager
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -173,19 +173,17 @@ const TouristView = () => {
                             <div key={trip._id || trip.id} className="p-4 bg-darkBg rounded-lg border border-stone-800 hover:border-neonGreen/30 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="text-sm font-bold text-white">{trip.destination || 'Eco-Tour'}</h4>
-                                    <span className="text-xs text-neonGreen bg-neonGreen/10 px-2 py-0.5 rounded font-semibold">+{trip.co2Saved || 0}kg</span>
+                                    <span className="text-xs text-neonGreen bg-neonGreen/10 px-2 py-0.5 rounded font-semibold">{Number(trip.carbonSaved) || 0} kg estimate</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-stone-500">{new Date(trip.date || Date.now()).toLocaleDateString() || trip.date}</span>
-                                    <span className="text-stone-400 italic">{trip.status || 'Completed'}</span>
+                                    <span className="text-stone-500">{trip.createdAt ? new Date(trip.createdAt).toLocaleDateString() : 'Date not recorded'}</span>
+                                    <span className="text-stone-400 italic">{trip.status || 'planned'}</span>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    <button className="w-full mt-6 py-2.5 border border-stone-700 bg-darkBg rounded text-stone-300 font-semibold hover:text-white hover:border-stone-500 transition-colors text-sm">
-                        View All History
-                    </button>
+                    <Link to="/planner" className="block w-full mt-6 py-2.5 border border-stone-700 bg-darkBg rounded text-center text-stone-300 font-semibold hover:text-white hover:border-stone-500 transition-colors text-sm">Plan another trip</Link>
                 </div>
             </div>
         </div>
@@ -209,14 +207,11 @@ const BusinessView = ({ user }) => {
 
     const fetchMyBiz = async () => {
         try {
-            const res = await api.get('/businesses');
             const ownerId = user?._id || user?.id;
-            setMyBusinesses(res.data.filter(b => {
-                const bOwnerId = b.owner?._id || b.owner;
-                return bOwnerId === ownerId;
-            }));
-        } catch (err) {
-            console.error("Failed fetching businesses", err);
+            const res = await api.get(`/businesses?owner=${ownerId}`);
+            setMyBusinesses(res.data);
+        } catch {
+            toast.error('Unable to load your business listings.');
         }
     };
 
@@ -389,7 +384,7 @@ const BusinessView = ({ user }) => {
                                                     fairWageEmployment: !!biz.greenCriteria.fairWageEmployment,
                                                     habitatProtection: !!biz.greenCriteria.habitatProtection
                                                 });
-                                                setPreview(biz.image && biz.image !== 'no-photo.jpg' ? (biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image) : null);
+                                                setPreview(biz.image && biz.image !== 'no-photo.jpg' ? getImageUrl(biz.image) : null);
                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                                             }}
                                             className="w-full mt-2 py-2 bg-stone-800 hover:bg-stone-700 text-white text-xs font-bold rounded transition-colors"
@@ -412,14 +407,14 @@ const AdminView = () => {
     const [pending, setPending] = useState([]);
     const [newSite, setNewSite] = useState({ mgrName: '', mgrEmail: '', mgrPassword: '', siteName: '', siteLocation: '', maxCapacity: '' });
 
-    // Auto-fetch logic for pending businesses (Mocking standard GET response)
+    // Fetch pending businesses and manager requests with backend query filters
     useEffect(() => {
         const fetchPending = async () => {
             try {
-                const res = await api.get('/businesses');
-                setPending(res.data.filter(b => b.badgeStatus === 'pending' || b.badgeStatus === 'none'));
-            } catch (err) {
-                console.error("Admin view failed", err);
+                const res = await api.get('/businesses?badgeStatus=pending');
+                setPending(res.data);
+            } catch {
+                toast.error('Unable to load business applications.');
             }
         };
         fetchPending();
@@ -430,12 +425,12 @@ const AdminView = () => {
     useEffect(() => {
         const fetchPendingManagers = async () => {
             try {
-                const res = await api.get('/site-requests');
-                setPendingManagers(res.data.filter(r => r.status === 'pending'));
-            } catch (error) {
-                console.error("Admin View failed fetching requests:", error);
+                const res = await api.get('/site-requests?status=pending');
+                setPendingManagers(res.data);
+            } catch {
+                toast.error('Unable to load site-manager applications.');
             }
-        }
+        };
         fetchPendingManagers();
     }, []);
 
@@ -461,7 +456,6 @@ const AdminView = () => {
             toast.success(`Application rejected.`);
             setPending(pending.filter(b => b._id !== id));
         } catch (error) {
-            console.error("Rejection Error:", error.response?.data || error.message);
             toast.error(error.response?.data?.message || "Failed to reject application.");
         }
     };
@@ -489,11 +483,10 @@ const AdminView = () => {
         e.preventDefault();
         try {
             // 1. Create the Site Manager account
-            const registerRes = await api.post('/auth/register', {
+            const registerRes = await api.post('/auth/site-manager', {
                 name: newSite.mgrName,
                 email: newSite.mgrEmail,
-                password: newSite.mgrPassword,
-                role: 'siteManager'
+                password: newSite.mgrPassword
             });
 
             const managerId = registerRes.data._id;
@@ -504,8 +497,6 @@ const AdminView = () => {
                 location: newSite.siteLocation,
                 maxCapacity: parseInt(newSite.maxCapacity),
                 manager: managerId
-            }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             });
 
             toast.success("Site and Manager successfully registered!");
@@ -559,7 +550,7 @@ const AdminView = () => {
                                                 )}
                                             </div>
                                             {biz.image && biz.image !== 'no-photo.jpg' ? (
-                                                <a href={biz.image.startsWith('/') ? 'http://localhost:5000' + biz.image : biz.image} target="_blank" rel="noreferrer" className="text-neonGreen hover:underline text-sm font-semibold inline-flex items-center gap-1">View Evidence <Map size={12} /></a>
+                                                <a href={getImageUrl(biz.image)} target="_blank" rel="noreferrer" className="text-neonGreen hover:underline text-sm font-semibold inline-flex items-center gap-1">View Evidence <Map size={12} /></a>
                                             ) : (
                                                 <span className="text-xs text-stone-600">None Provided</span>
                                             )}
@@ -599,7 +590,7 @@ const AdminView = () => {
                         <h4 className="text-sm uppercase text-stone-500 font-semibold mb-2">Manager Account</h4>
                         <input type="text" placeholder="Manager Full Name" required value={newSite.mgrName} onChange={(e) => setNewSite({ ...newSite, mgrName: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
                         <input type="email" placeholder="Manager Email" required value={newSite.mgrEmail} onChange={(e) => setNewSite({ ...newSite, mgrEmail: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
-                        <input type="password" placeholder="Temporary Password" required value={newSite.mgrPassword} onChange={(e) => setNewSite({ ...newSite, mgrPassword: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
+                        <input type="password" placeholder="Temporary Password (12+ characters)" required minLength={12} value={newSite.mgrPassword} onChange={(e) => setNewSite({ ...newSite, mgrPassword: e.target.value })} className="w-full bg-darkBg border border-stone-700 rounded py-2 px-3 text-white focus:border-neonGreen outline-none" />
                     </div>
 
                     <div className="space-y-4">
@@ -613,7 +604,7 @@ const AdminView = () => {
                         <button type="submit" className="w-full py-3 bg-stone-800 text-white font-bold rounded flex justify-center items-center gap-2 hover:bg-neonGreen hover:text-darkBg transition-colors border border-stone-700 hover:border-transparent">
                             <CheckCircle size={18} /> Create Account & Register Site
                         </button>
-                        <p className="text-xs text-stone-500 text-center mt-3">The manager will be able to log in to dynamically update the live capacity of the created site.</p>
+                        <p className="text-xs text-stone-500 text-center mt-3">The manager can maintain visitor counts manually. No live sensor feed is connected.</p>
                     </div>
                 </form>
             </div>
@@ -621,7 +612,7 @@ const AdminView = () => {
     );
 };
 
-/* --- SITE MANAGER VIEW (Update Live Capacity) --- */
+/* --- SITE MANAGER VIEW (Maintain Capacity Records) --- */
 const SiteManagerView = () => {
     const [sites, setSites] = useState([]);
     const [stats, setStats] = useState({
@@ -660,8 +651,8 @@ const SiteManagerView = () => {
                     yellowSites,
                     redSites
                 });
-            } catch (err) {
-                console.error("Site Manager view failed", err);
+            } catch {
+                toast.error('Unable to load managed sites.');
             }
         };
         fetchSites();
@@ -789,10 +780,10 @@ const SiteManagerView = () => {
                 </div>
             </div>
 
-            {/* Live Capacity Management */}
+            {/* Capacity Record Management */}
             <div className="bg-deepCard p-8 rounded-xl border border-stone-800">
                 <h3 className="text-xl font-display font-bold text-white mb-6 border-b border-stone-800 pb-4 flex items-center gap-2">
-                    <ShieldCheck className="text-neonGreen" /> Live Capacity Management
+                    <ShieldCheck className="text-neonGreen" /> Manual Capacity Records
                 </h3>
 
                 {sites.length === 0 ? (
@@ -851,11 +842,11 @@ const SiteManagerView = () => {
                                         }}
                                         className="bg-neonGreen text-darkBg px-4 py-2 rounded font-semibold whitespace-nowrap hover:bg-accentGreen transition-colors text-sm"
                                     >
-                                        Sync Live
+                                        Save Count
                                     </button>
                                 </div>
                                 <p className="text-xs text-stone-500 mt-3 text-center">
-                                    Update visitor count and click Sync Live to update traffic light status
+                                    Update the recorded visitor count to recalculate the site's capacity status.
                                 </p>
                             </div>
                         ))}

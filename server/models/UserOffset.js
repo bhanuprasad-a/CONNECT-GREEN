@@ -27,4 +27,7 @@ const userOffsetSchema = new mongoose.Schema({
     timestamps: true
 });
 
+userOffsetSchema.index({ user: 1, createdAt: -1 });
+userOffsetSchema.index({ project: 1 });
+
 module.exports = mongoose.model('UserOffset', userOffsetSchema);

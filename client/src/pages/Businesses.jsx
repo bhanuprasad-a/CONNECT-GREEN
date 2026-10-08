@@ -2,65 +2,32 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { BadgeCheck, Star, MapPin, Search, Filter } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { getImageUrl } from '../utils/getImageUrl';
 
 const Businesses = () => {
     const [businesses, setBusinesses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
-
-    // Fallback Mock Data if API isn't populated
-    const MOCK_DATA = [
-        { _id: '1', name: 'EcoLodge Stay', category: 'hotel', location: 'New York, USA', badgeStatus: 'gold', avgRating: 4.8, image: 'https://images.unsplash.com/photo-1587061949409-02df41d5e562?w=500' },
-        { _id: '2', name: 'Green Way EVs', category: 'transport', location: 'London, UK', badgeStatus: 'platinum', avgRating: 5.0, image: 'https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?w=500' },
-        { _id: '3', name: 'Organic Vegan Bites', category: 'restaurant', location: 'Berlin, DE', badgeStatus: 'silver', avgRating: 4.2, image: 'https://images.unsplash.com/photo-1498837167339-5fe41ae49b99?w=500' },
-        { _id: '4', name: 'Coral Rescue Dive', category: 'activity', location: 'Bali, ID', badgeStatus: 'bronze', avgRating: 4.5, image: 'https://images.unsplash.com/photo-1544551763-46a013ad70d3?w=500' }
-    ];
-    const mockBusinesses = [
-        {
-            owner: "69a41f7b4305ecd98749812e", // existing user _id
-            name: "Green Valley Eco Resort",
-            category: "hotel",
-            location: "Araku Valley",
-            description: "Sustainable resort using solar power and organic farming.",
-            image: "/uploads/green-valley.webp",
-            badgeStatus: "gold",
-            isVerified: true,
-            avgRating: 4.7
-        },
-        {
-            owner: "69a41f7b4305ecd98749812e",
-            name: "Nature Roots Restaurant",
-            category: "restaurant",
-            location: "Vijayawada",
-            description: "Farm-to-table restaurant serving organic traditional food.",
-            image: "/uploads/nature-roots.webp",
-            badgeStatus: "silver",
-            isVerified: true,
-            avgRating: 4.5
-        }
-    ];
-
 
     useEffect(() => {
         const fetchBusinesses = async () => {
             try {
                 const res = await api.get('/businesses');
-                // Use live data if available, else mock
-                setBusinesses(res.data.length > 0 ? res.data : MOCK_DATA);
-            } catch (error) {
-                console.error("Failed to fetch businesses, using mock", error);
-                setBusinesses(MOCK_DATA);
-                toast.error('Could not connect to live API. Showing mock data.');
+                setBusinesses(Array.isArray(res.data) ? res.data : []);
+                setFetchError(false);
+            } catch {
+                setBusinesses([]);
+                setFetchError(true);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchBusinesses();
-    }, []);
+    }, [retryCount]);
 
     const getBadgeColor = (status) => {
         switch (status) {
@@ -97,7 +64,7 @@ const Businesses = () => {
                         Green <span className="text-neonGreen">Directory</span>
                     </h1>
                     <p className="text-stone-400 max-w-2xl mx-auto text-lg">
-                        Support local economies and minimize your footprint by choosing from our rigorously verified ecological partners.
+                        Explore local sustainability listings. Badge status reflects this platform's review workflow, not independent certification.
                     </p>
                 </div>
             </div>
@@ -138,12 +105,13 @@ const Businesses = () => {
 
                         {/* Badge Info Box */}
                         <div className="mt-8 bg-darkBg p-4 rounded border border-stone-800">
-                            <h4 className="text-xs uppercase text-stone-500 font-semibold mb-3">Badge System</h4>
+                            <h4 className="text-xs uppercase text-stone-500 font-semibold mb-3">Platform Review Tiers</h4>
                             <div className="space-y-2 text-xs">
-                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#E5E4E2' }}></div> Platinum (Zero Carbon)</div>
-                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#FFD700' }}></div> Gold (-80% Carbon)</div>
-                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#C0C0C0' }}></div> Silver (-50% Carbon)</div>
-                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#CD7F32' }}></div> Bronze (Basic Green)</div>
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#E5E4E2' }}></div> Platinum review tier</div>
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#FFD700' }}></div> Gold review tier</div>
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#C0C0C0' }}></div> Silver review tier</div>
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#CD7F32' }}></div> Bronze review tier</div>
+                                <p className="pt-2 text-stone-500">These tiers are not independent certifications.</p>
                             </div>
                         </div>
                     </div>
@@ -154,6 +122,12 @@ const Businesses = () => {
                     {loading ? (
                         <div className="flex justify-center items-center h-64">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neonGreen"></div>
+                        </div>
+                    ) : fetchError ? (
+                        <div className="bg-deepCard border border-stone-800 rounded-xl p-12 text-center shadow-lg">
+                            <h3 className="text-xl font-medium text-stone-300">Directory unavailable</h3>
+                            <p className="text-stone-500 mt-2">The business service could not be reached. No sample listings are being shown.</p>
+                            <button onClick={() => { setLoading(true); setRetryCount(retryCount + 1); }} className="mt-6 text-neonGreen hover:text-accentGreen underline underline-offset-4">Try again</button>
                         </div>
                     ) : filteredBusinesses.length === 0 ? (
                         <div className="bg-deepCard border border-stone-800 rounded-xl p-12 text-center shadow-lg">
@@ -171,7 +145,7 @@ const Businesses = () => {
                                         <div className="absolute top-3 right-3 bg-darkBg/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-stone-700 shadow-xl">
                                             <BadgeCheck fill={getBadgeColor(biz.badgeStatus)} className="text-darkBg" size={18} />
                                             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: getBadgeColor(biz.badgeStatus) }}>
-                                                {biz.badgeStatus}
+                                                {biz.badgeStatus === 'pending' ? 'Under review' : `Platform ${biz.badgeStatus}`}
                                             </span>
                                         </div>
                                     </div>

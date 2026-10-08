@@ -16,10 +16,12 @@ const natureSiteSchema = new mongoose.Schema({
     },
     maxCapacity: {
         type: Number,
+        min: [1, 'Maximum capacity must be at least 1'],
         required: [true, 'Please provide the maximum visitor capacity']
     },
     currentVisitors: {
         type: Number,
+        min: [0, 'Visitor count cannot be negative'],
         default: 0
     },
     status: {
@@ -65,5 +67,10 @@ natureSiteSchema.pre('save', function (next) {
     }
     next();
 });
+
+natureSiteSchema.index({ manager: 1 });
+natureSiteSchema.index({ status: 1 });
+natureSiteSchema.index({ geoLocation: '2dsphere' });
+natureSiteSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('NatureSite', natureSiteSchema);

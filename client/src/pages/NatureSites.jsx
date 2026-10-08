@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { MapPin, Users, Activity, Leaf, Info, ArrowRight } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { getImageUrl } from '../utils/getImageUrl';
 
 const TrafficLightWidget = ({ status }) => {
@@ -22,7 +21,7 @@ const SiteCard = ({ site, onShowAlternatives }) => {
     const getStatusText = () => {
         if (site.status === 'red') return <span className="text-red-500 font-bold tracking-wider">AT CAPACITY</span>;
         if (site.status === 'yellow') return <span className="text-yellow-500 font-bold tracking-wider">BUSY</span>;
-        return <span className="text-neonGreen font-bold tracking-wider">PERFECT TIME TO VISIT</span>;
+        return <span className="text-neonGreen font-bold tracking-wider">LOW RECORDED CAPACITY</span>;
     };
 
     return (
@@ -32,7 +31,7 @@ const SiteCard = ({ site, onShowAlternatives }) => {
                 <img src={getImageUrl(site.image) || 'https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?w=600'} alt={site.name} className="w-full h-full object-cover" />
                 <div className="absolute top-3 left-3 bg-darkBg/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-stone-700">
                     <Leaf className="text-neonGreen" size={14} />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">Verified Protected</span>
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">Site Record</span>
                 </div>
             </div>
 
@@ -51,7 +50,7 @@ const SiteCard = ({ site, onShowAlternatives }) => {
                     <div className="bg-darkBg rounded-lg p-5 border border-stone-800 mb-6">
                         <div className="flex justify-between items-end mb-2">
                             <div>
-                                <p className="text-xs uppercase text-stone-500 font-semibold mb-1">Live Status</p>
+                                <p className="text-xs uppercase text-stone-500 font-semibold mb-1">Recorded Status</p>
                                 {getStatusText()}
                             </div>
                             <div className="text-right">
@@ -79,7 +78,7 @@ const SiteCard = ({ site, onShowAlternatives }) => {
                         </p>
                     ) : (
                         <p className="text-stone-400 flex items-center gap-2 text-xs">
-                            <Activity size={14} /> Live sensor feed active
+                            <Activity size={14} /> Manually updated capacity record
                         </p>
                     )}
                     <button 
@@ -98,28 +97,15 @@ const SiteCard = ({ site, onShowAlternatives }) => {
 const NatureSites = () => {
     const [sites, setSites] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
     const [selectedSite, setSelectedSite] = useState(null);
     const [showAlternatives, setShowAlternatives] = useState(false);
 
-    const MOCK_SITES = [
-        // Vijayawada and surrounding natural sites
-        { _id: '1', name: 'Kondapalli Fort', location: 'Kondapalli, Vijayawada', maxCapacity: 300, currentVisitors: 180, status: 'yellow', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600' },
-        { _id: '2', name: 'Bhavani Island', location: 'Krishna River, Vijayawada', maxCapacity: 200, currentVisitors: 200, status: 'red', image: 'https://images.unsplash.com/photo-1540202404-1b927e77f019?w=600' },
-        { _id: '3', name: 'Mangalagiri Hills', location: 'Mangalagiri, Vijayawada', maxCapacity: 150, currentVisitors: 60, status: 'green', image: 'https://images.unsplash.com/photo-1596428232159-71d2de7641db?w=600' },
-        { _id: '4', name: 'Undavalli Caves', location: 'Undavalli, Vijayawada', maxCapacity: 100, currentVisitors: 45, status: 'green', image: 'https://images.unsplash.com/photo-1605649673351-35d7b5b2f4d7?w=600' },
-        { _id: '5', name: 'Kanaka Durga Temple Hill', location: 'Indrakeeladri, Vijayawada', maxCapacity: 500, currentVisitors: 350, status: 'yellow', image: 'https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=600' },
-        { _id: '6', name: 'Prakasam Barrage', location: 'Krishna River, Vijayawada', maxCapacity: 250, currentVisitors: 80, status: 'green', image: 'https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?w=600' },
-        // Other international sites
-        { _id: '7', name: 'Emerald Coast Reserve', location: 'California, USA', maxCapacity: 400, currentVisitors: 120, status: 'green', image: 'https://images.unsplash.com/photo-1549470987-9bb16ab3ac6c?w=600' },
-        { _id: '8', name: 'Valley of the Giants', location: 'Western Australia, AU', maxCapacity: 250, currentVisitors: 190, status: 'yellow', image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600' }
-    ];
-
-    // Alternative sites mapping
     const getAlternativeSites = (currentSite) => {
-        const alternatives = MOCK_SITES.filter(site => 
+        const alternatives = sites.filter(site =>
             site._id !== currentSite._id && 
-            site.status === 'green' &&
-            site.location.toLowerCase().includes('vijayawada')
+            site.status === 'green'
         );
         return alternatives.slice(0, 3);
     };
@@ -138,18 +124,18 @@ const NatureSites = () => {
         const fetchSites = async () => {
             try {
                 const res = await api.get('/sites');
-                setSites(res.data.length > 0 ? res.data : MOCK_SITES);
-            } catch (error) {
-                console.error("Failed to fetch sites, using mock", error);
-                setSites(MOCK_SITES);
-                toast.error('Could not connect to live API. Showing mock data.');
+                setSites(Array.isArray(res.data) ? res.data : []);
+                setFetchError(false);
+            } catch {
+                setSites([]);
+                setFetchError(true);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchSites();
-    }, []);
+    }, [retryCount]);
 
     return (
         <div className="min-h-screen bg-darkBg text-white pt-32 pb-24">
@@ -158,13 +144,13 @@ const NatureSites = () => {
                 <div className="text-center max-w-3xl mx-auto mb-16">
                     <span className="inline-block border border-red-500/50 bg-red-500/10 text-red-500 font-medium text-xs px-3 py-1 rounded-full mb-4">
                         <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2"></span>
-                        LIVE CAPACITY MONITORING
+                        MANUAL / DEMO CAPACITY DATA
                     </span>
                     <h1 className="text-4xl sm:text-5xl font-display font-bold mb-6">
                         Protect Fragile <span className="text-neonGreen">Ecosystems</span>
                     </h1>
                     <p className="text-stone-400 text-lg">
-                        Over-tourism destroys delicate natural habitats. Use our live capacity monitor to check if a park is crowded before you travel, ensuring a better experience for you and nature.
+                        Capacity counts are maintained by site managers or demo records. This project is not connected to live visitor sensors.
                     </p>
                 </div>
 
@@ -172,6 +158,13 @@ const NatureSites = () => {
                     <div className="flex justify-center py-20">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neonGreen"></div>
                     </div>
+                ) : fetchError ? (
+                    <div className="py-16 text-center text-stone-400">
+                        <p>Nature site data is unavailable. No sample capacity records are being shown.</p>
+                        <button onClick={() => { setLoading(true); setRetryCount(retryCount + 1); }} className="mt-4 text-neonGreen underline underline-offset-4">Try again</button>
+                    </div>
+                ) : sites.length === 0 ? (
+                    <div className="py-16 text-center text-stone-400">No nature sites have been added yet.</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 lg:gap-12 lg:px-12">
                         {sites.map(site => (
@@ -190,10 +183,10 @@ const NatureSites = () => {
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <h2 className="text-2xl font-bold text-white mb-2">
-                                            Alternative Sites Near {selectedSite.name}
+                                            Other Available Sites
                                         </h2>
                                         <p className="text-stone-400">
-                                            Since {selectedSite.name} is {selectedSite.status === 'red' ? 'at capacity' : 'busy'}, here are some less crowded alternatives in the Vijayawada area:
+                                            Sites marked green may have available capacity. Confirm conditions with the site manager before travelling.
                                         </p>
                                     </div>
                                     <button

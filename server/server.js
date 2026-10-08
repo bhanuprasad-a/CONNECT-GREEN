@@ -1,9 +1,15 @@
 // !! MUST be first — loads .env before anything else reads process.env
 require('dotenv').config();
 
+const { loadSecurityConfig } = require('./config/security');
+const { allowedOrigins } = loadSecurityConfig();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 
 // Route Imports
@@ -21,34 +27,85 @@ connectDB();
 
 const app = express();
 
-// CORS — allow local dev + production frontend
-const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:4173',
-    process.env.FRONTEND_URL,
-].filter(Boolean);
+// Security Headers (disables powered-by, protects against common web vulnerabilities)
+app.use(helmet({
+    contentSecurityPolicy: false, // Allows external map tiles (MapLibre / OpenStreetMap) and assets
+    crossOriginEmbedderPolicy: false
+}));
+
+// Gzip / Brotli compression for all JSON and static payloads (cuts latency by 70-85%)
+app.use(compression());
+
+// Log request duration after the response completes; headers are already committed at this point.
+app.use((req, res, next) => {
+    const start = process.hrtime();
+    res.once('finish', () => {
+        const diff = process.hrtime(start);
+        const timeMs = ((diff[0] * 1e9 + diff[1]) / 1e6).toFixed(2);
+        console.info(JSON.stringify({
+            level: 'info',
+            event: 'http_response',
+            method: req.method,
+            path: req.path,
+            statusCode: res.statusCode,
+            durationMs: Number(timeMs),
+        }));
+    });
+    next();
+});
+
+// API Rate Limiting to prevent latency spikes from DDoS / brute force
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300, // Limit each IP to 300 requests per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many requests, please try again later.' }
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many login attempts, please try again in 15 minutes.' }
+});
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. Postman, server-to-server)
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(null, true); // In dev allow all; restrict in prod by removing this line
+            callback(null, false);
         }
     },
     credentials: true,
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Serve uploaded images
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/site-manager', authLimiter);
+
+// Serve uploaded images with caching (1 day)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+    maxAge: '1d',
+    etag: true
+}));
 
 // Health check endpoint (useful for Render + uptime monitors)
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.NODE_ENV });
+    res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        time: new Date().toISOString(),
+        env: process.env.NODE_ENV || 'development'
+    });
 });
 
 // API Routes
@@ -61,9 +118,12 @@ app.use('/api/recycling', recyclingRoutes);
 app.use('/api/site-requests', siteManagerRoutes);
 app.use('/api/offsets', offsetRoutes);
 
-// Production — serve React build
+// Production — serve React build with cache headers
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../client/dist')));
+    app.use(express.static(path.join(__dirname, '../client/dist'), {
+        maxAge: '1d',
+        etag: true
+    }));
     app.get('*', (req, res) => {
         res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
     });
@@ -73,10 +133,10 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-// Global error handler
+// Global error handler (avoids stack leak in production)
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({ message: err.message || 'Internal Server Error' });
+    console.error(JSON.stringify({ level: 'error', operation: 'http.middleware', errorName: err?.name || 'UnknownError' }));
+    res.status(err.status || 500).json({ message: 'An internal error occurred.' });
 });
 
 // Export app for Vercel

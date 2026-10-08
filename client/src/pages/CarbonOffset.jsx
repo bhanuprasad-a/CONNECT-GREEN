@@ -35,9 +35,9 @@ const CarbonOffsets = () => {
                     const total = historyRows.reduce((acc, curr) => acc + (curr.amountOffset || 0), 0);
                     setStats({ totalOffset: total, projectsBuilt: historyRows.length });
                 }
-            } catch (error) {
-                console.error('Failed to fetch offset projects', error);
+            } catch {
                 setProjects([]);
+                toast.error('The demo offset catalog is unavailable.');
             } finally {
                 setLoading(false);
             }
@@ -61,7 +61,7 @@ const CarbonOffsets = () => {
                 projectId: selectedProject._id,
                 amountOffset: offsetAmount
             });
-            toast.success(`Successfully offset ${offsetAmount}kg of CO2!`, { id: 'purchase' });
+            toast.success(`Recorded a demo contribution of ${offsetAmount} kg. No payment was made.`, { id: 'purchase' });
             setStats({ ...stats, totalOffset: stats.totalOffset + parseInt(offsetAmount), projectsBuilt: stats.projectsBuilt + 1 });
             setSelectedProject(null);
         } catch (error) {
@@ -88,7 +88,7 @@ const CarbonOffsets = () => {
                                 Neutralize Your <span className="text-neonGreen">Footprint.</span>
                             </h1>
                             <p className="text-stone-400 text-lg leading-relaxed">
-                                Carbon offsetting allows you to compensate for emissions you can't avoid by funding projects that reduce or remove greenhouse gases elsewhere.
+                                Explore an illustrative offset catalog and record a demo contribution. The application does not verify projects, process payments, or issue carbon credits.
                             </p>
                         </div>
 
@@ -122,7 +122,7 @@ const CarbonOffsets = () => {
                                 </li>
                                 <li className="flex items-start gap-2">
                                     <CheckCircle size={14} className="text-neonGreen mt-1 flex-shrink-0" />
-                                    <span>Select a verified project from the list.</span>
+                                    <span>Select an illustrative project from the catalog.</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                     <CheckCircle size={14} className="text-neonGreen mt-1 flex-shrink-0" />
@@ -135,9 +135,10 @@ const CarbonOffsets = () => {
                     {/* RIGHT: Project List */}
                     <div className="lg:col-span-2 space-y-8">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-2xl font-display font-bold text-white">Verified Green Projects</h2>
-                            <div className="text-xs text-stone-500 uppercase font-bold tracking-widest">Global Portfolio</div>
+                            <h2 className="text-2xl font-display font-bold text-white">Demo Project Catalog</h2>
+                            <div className="text-xs text-stone-500 uppercase font-bold tracking-widest">No payments processed</div>
                         </div>
+                        <p className="text-sm text-amber-300 border-l-2 border-amber-400 pl-3">Projects and contribution records are illustrative. Contributions do not transfer funds or issue verified carbon credits.</p>
 
                         <div className="grid grid-cols-1 gap-6">
                             {projects.map((p) => (
@@ -209,7 +210,7 @@ const CarbonOffsets = () => {
                                             max="5000"
                                             step="10"
                                             value={offsetAmount}
-                                            onChange={(e) => setOffsetAmount(e.target.value)}
+                                            onChange={(e) => setOffsetAmount(Number(e.target.value))}
                                             className="w-full h-2 bg-stone-800 rounded-lg appearance-none cursor-pointer accent-neonGreen"
                                         />
                                         <div className="flex justify-between text-[10px] text-stone-600 font-bold uppercase">
@@ -222,11 +223,11 @@ const CarbonOffsets = () => {
                                         <p className="text-4xl font-display font-bold text-white mb-4">
                                             {formatINR(offsetAmount * selectedProject.costPerKg)}
                                         </p>
-                                        <button
+                                            <button
                                             onClick={handlePurchase}
                                             className="w-full py-4 bg-neonGreen text-darkBg font-bold rounded-xl shadow-[0_0_30px_rgba(34,197,94,0.3)] hover:bg-accentGreen hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                                         >
-                                            <Zap size={18} fill="currentColor" /> Offset Now
+                                            <Zap size={18} fill="currentColor" /> Record Demo Contribution
                                         </button>
                                     </div>
                                 </div>

@@ -16,6 +16,11 @@
 require('dotenv').config();
 const { MongoClient, ObjectId } = require('mongodb');
 
+if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_SOURCE_DROP !== 'true' || !process.env.MONGO_URI) {
+    console.error('Collection merge requires NODE_ENV=development, ALLOW_SOURCE_DROP=true, and MONGO_URI.');
+    process.exit(1);
+}
+
 const RAW_URI = process.env.MONGO_URI.replace(/^"|"$/g, '');
 const BASE_URI = RAW_URI.replace(/\/connect_green\?/, '/admin?');
 const DB_NAME = 'connect_green';

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Leaf, Twitter, Github, Linkedin } from 'lucide-react';
+import { Leaf } from 'lucide-react';
 
 const Footer = () => {
     return (
@@ -16,13 +16,8 @@ const Footer = () => {
                             </span>
                         </Link>
                         <p className="text-stone-400 text-sm leading-relaxed mb-6">
-                            A smart web platform for sustainable tourism. Empowering eco-conscious travelers and verifying green businesses globally.
+                            A sustainable tourism project connecting travelers, local listings, and nature-site capacity records.
                         </p>
-                        <div className="flex space-x-4">
-                            <a href="#" className="text-stone-400 hover:text-neonGreen transition-colors"><Twitter size={20} /></a>
-                            <a href="#" className="text-stone-400 hover:text-neonGreen transition-colors"><Github size={20} /></a>
-                            <a href="#" className="text-stone-400 hover:text-neonGreen transition-colors"><Linkedin size={20} /></a>
-                        </div>
                     </div>
 
                     {/* Navigation Column */}
@@ -40,10 +35,10 @@ const Footer = () => {
                     <div>
                         <h4 className="text-white font-semibold mb-4 tracking-wide uppercase text-sm">Resources</h4>
                         <ul className="space-y-3">
-                            <li><Link to="/about" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">About Us</Link></li>
-                            <li><Link to="/badge-info" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Green Badge System</Link></li>
-                            <li><Link to="/impact" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Carbon Impact Report</Link></li>
-                            <li><Link to="/contact" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Contact Support</Link></li>
+                            <li><Link to="/recycling" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Recycling Locator</Link></li>
+                            <li><Link to="/offset" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Demo Offset Catalog</Link></li>
+                            <li><Link to="/apply-site-manager" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Site Manager Application</Link></li>
+                            <li><Link to="/register" className="text-neonGreen font-semibold hover:text-accentGreen transition-colors text-sm">Create Account</Link></li>
                         </ul>
                     </div>
 
@@ -51,16 +46,16 @@ const Footer = () => {
                     <div>
                         <h4 className="text-white font-semibold mb-4 tracking-wide uppercase text-sm">Legal & Connect</h4>
                         <ul className="space-y-3">
-                            <li><Link to="/privacy" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Privacy Policy</Link></li>
-                            <li><Link to="/terms" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Terms of Service</Link></li>
-                            <li><Link to="/register" className="text-neonGreen font-semibold hover:text-accentGreen transition-colors text-sm mt-4 block">Partner With Us &rarr;</Link></li>
+                            <li><Link to="/login" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Sign In</Link></li>
+                            <li><Link to="/dashboard" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Dashboard</Link></li>
+                            <li><Link to="/planner" className="text-stone-400 hover:text-neonGreen transition-colors text-sm">Trip Planner</Link></li>
                         </ul>
                     </div>
                 </div>
 
                 <div className="pt-8 border-t border-stone-800 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-stone-500 text-xs text-center md:text-left">
-                        &copy; {new Date().getFullYear()} CONNECT GREEN. College Project - Green Technologies. Built by Arya.
+                        &copy; {new Date().getFullYear()} CONNECT GREEN. Educational project.
                     </p>
                     <p className="text-stone-500 text-xs text-center md:text-right">
                         Designed & Developed with MERN Stack

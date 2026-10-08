@@ -1,47 +1,40 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { getRegistrationRole } = require('../utils/registrationRole');
+const { respondWithApiError } = require('../utils/apiError');
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d',
+        expiresIn: '1d',
     });
 };
 
 const registerUser = async (req, res) => {
     try {
         const { name, email, password, role: requestedRole } = req.body;
+        if (typeof name !== 'string' || name.trim().length < 1 || name.trim().length > 120 ||
+            typeof email !== 'string' || email.trim().length > 254 ||
+            typeof password !== 'string' || password.length < 12 || password.length > 128) {
+            return res.status(400).json({ message: 'Provide a valid name, email, and password of at least 12 characters' });
+        }
 
-        const userExists = await User.findOne({ email });
+        const normalizedEmail = email.toLowerCase().trim();
+        const role = getRegistrationRole(requestedRole);
+        if (!role) {
+            return res.status(400).json({ message: 'This account role requires approval or administrator provisioning' });
+        }
+
+        const userExists = await User.findOne({ email: normalizedEmail });
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        // Allow specific demo emails to have different roles
-        const DEMO_ACCOUNTS = {
-            'admin@connectgreen.com': 'admin',
-            'business@connectgreen.com': 'business',
-            'sitemanager@connectgreen.com': 'siteManager',
-            'tourist@connectgreen.com': 'tourist'
-        };
-
-        // only the designated admin email is allowed to become admin
-        const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'aryathebasha@outlook.com';
-        let role = 'tourist'; // default role
-        
-        // Check if it's a demo account
-        if (DEMO_ACCOUNTS[email]) {
-            role = DEMO_ACCOUNTS[email];
-        } else if (email === ADMIN_EMAIL) {
-            role = 'admin';
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         const user = await User.create({
             name,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
             role
         });
@@ -58,19 +51,21 @@ const registerUser = async (req, res) => {
             res.status(400).json({ message: 'Invalid user data' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'auth.register');
     }
 };
 
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log(`Login attempt: ${email}`);
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Please provide email and password' });
+        }
 
-        const user = await User.findOne({ email }).select('+password');
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
         if (user && (await bcrypt.compare(password, user.password))) {
-            console.log(`Login successful: ${email} with role: ${user.role}`);
             res.json({
                 _id: user._id,
                 name: user.name,
@@ -80,18 +75,19 @@ const loginUser = async (req, res) => {
                 token: generateToken(user._id)
             });
         } else {
-            console.log(`Login failed: ${email}`);
             res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'auth.login');
     }
 };
 
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('-password').lean();
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
         res.json({
             _id: user._id,
             name: user.name,
@@ -100,8 +96,34 @@ const getMe = async (req, res) => {
             greenPoints: user.greenPoints || 0
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'auth.profile');
     }
 };
 
-module.exports = { registerUser, loginUser, getMe };
+const createSiteManagerUser = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+        if (typeof name !== 'string' || name.trim().length < 1 || name.trim().length > 120 ||
+            typeof email !== 'string' || email.trim().length > 254 ||
+            typeof password !== 'string' || password.length < 12 || password.length > 128) {
+            return res.status(400).json({ message: 'Provide a valid name, email, and password of at least 12 characters' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        if (await User.exists({ email: normalizedEmail })) {
+            return res.status(409).json({ message: 'User already exists' });
+        }
+
+        const user = await User.create({
+            name: name.trim(),
+            email: normalizedEmail,
+            password: await bcrypt.hash(password, 12),
+            role: 'siteManager',
+        });
+        res.status(201).json({ _id: user._id, name: user.name, email: user.email, role: user.role });
+    } catch (error) {
+        respondWithApiError(res, error, 'auth.createSiteManager');
+    }
+};
+
+module.exports = { registerUser, loginUser, getMe, createSiteManagerUser };

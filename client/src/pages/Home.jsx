@@ -1,23 +1,24 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map, BadgeCheck, Activity, Users, Globe, Leaf, Search, MapPin, CheckCircle, Star } from 'lucide-react';
+import { Map, BadgeCheck, Activity, Users, Globe, Leaf, Search, MapPin, CheckCircle } from 'lucide-react';
 import { PieChart, Pie, Cell } from 'recharts';
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axios';
 import { getImageUrl } from '../utils/getImageUrl';
+import toast from 'react-hot-toast';
 const features = [
-    { icon: <Map size={32} />, title: 'Trip Planner', desc: 'AI-powered routing tailored for low carbon impact and maximum local engagement.' },
-    { icon: <BadgeCheck size={32} />, title: 'Green Badge', desc: 'Strict verification system ensuring you only support genuinely sustainable businesses.' },
-    { icon: <Activity size={32} />, title: 'Carbon Tracker', desc: 'Real-time metrics on your travel impact and CO2 savings compared to standard trips.' },
-    { icon: <Globe size={32} />, title: 'Site Monitor', desc: 'Live traffic light system preventing over-tourism at delicate natural conservation areas.' },
-    { icon: <Leaf size={32} />, title: 'Carbon Offset', desc: 'Instantly fund verified planting and clean energy projects to neutralize your footprint.' }
+    { icon: <Map size={32} />, title: 'Trip Planner', desc: 'Explore route options and indicative carbon estimates using map and routing data.' },
+    { icon: <BadgeCheck size={32} />, title: 'Green Badge', desc: 'Browse the platform-admin review status submitted by listed businesses.' },
+    { icon: <Activity size={32} />, title: 'Carbon Estimates', desc: 'Review indicative trip estimates based on route distance and selected listings.' },
+    { icon: <Globe size={32} />, title: 'Nature Sites', desc: 'View site-manager-maintained capacity records; live sensor data is not connected.' },
+    { icon: <Leaf size={32} />, title: 'Offset Demo', desc: 'Explore a sample offset catalog and record a demonstration contribution without payment.' }
 ];
 
-const testimonials = [
-    { text: "This platform completely changed how I travel. Seeing my carbon savings in real-time is truly amazing and motivating.", name: "Priya Sharma", rate: 5 },
-    { text: "As an eco-lodge owner, CONNECT GREEN brought us guests who genuinely care about nature and our conservation work.", name: "Ramesh Reddy", rate: 5 },
-    { text: "The site capacity feature is excellent! We avoided a crowded place and found a beautiful peaceful spot nearby instead.", name: "Ananya Patel", rate: 5 }
+const workflows = [
+    { title: 'Plan a route', detail: 'Compare a mapped route with indicative emissions estimates.' },
+    { title: 'Review a listing', detail: 'See a business profile, its platform review status, and community reviews.' },
+    { title: 'Check site records', detail: 'View the latest visitor count entered by a site manager.' }
 ];
 
 const Home = () => {
@@ -25,8 +26,7 @@ const Home = () => {
     const [tripStats, setTripStats] = useState({ tripsCount: 0, savedPercent: 0, stdEmissions: 0, actEmissions: 0 });
     const [businesses, setBusinesses] = useState([]);
     const [natureSites, setNatureSites] = useState([]);
-    const [platformStats, setPlatformStats] = useState({ 
-        co2Saved: 0, 
+    const [platformStats, setPlatformStats] = useState({
         businessesCount: 0, 
         sitesCount: 0 
     });
@@ -35,25 +35,22 @@ const Home = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch businesses
-                const bizRes = await api.get('/businesses');
+                // Fetch businesses and nature sites in parallel for minimum latency
+                const [bizRes, sitesRes] = await Promise.all([
+                    api.get('/businesses'),
+                    api.get('/sites')
+                ]);
                 const bizData = bizRes.data || [];
-                setBusinesses(bizData);
-
-                // Fetch nature sites
-                const sitesRes = await api.get('/sites');
                 const sitesData = sitesRes.data || [];
+                setBusinesses(bizData);
                 setNatureSites(sitesData);
 
-                // Calculate platform stats
-                const totalCO2 = bizData.reduce((sum, b) => sum + (b.co2Save || 0), 0);
                 setPlatformStats({
-                    co2Saved: Math.round(totalCO2 * 10.5), // Estimate based on business savings
                     businessesCount: bizData.length,
                     sitesCount: sitesData.length
                 });
-            } catch (err) {
-                console.error('Error fetching data:', err);
+            } catch {
+                toast.error('Some directory data is currently unavailable.');
             } finally {
                 setLoading(false);
             }
@@ -66,15 +63,14 @@ const Home = () => {
         const fetchTrips = async () => {
             if (user && user.role === 'tourist') {
                 try {
-                    const token = localStorage.getItem('token');
-                    const res = await api.get('/trips', { headers: { Authorization: `Bearer ${token}` } });
-                    const trips = res.data.trips || res.data;
+                    const res = await api.get('/trips');
+                    const trips = Array.isArray(res.data) ? res.data : [];
                     if (trips.length > 0) {
                         let totalSavings = 0;
                         let totalDistance = 0;
                         trips.forEach(t => {
-                            totalSavings += (t.co2Saved || t.carbonSavings || 0);
-                            totalDistance += (t.distance || 0);
+                            totalSavings += Number(t.carbonSaved) || 0;
+                            totalDistance += Number(t.distanceKm) || 0;
                         });
                         const stdEmiss = totalDistance * 0.192;
                         const actEmiss = Math.max(0, stdEmiss - totalSavings);
@@ -90,6 +86,7 @@ const Home = () => {
     const pieData = tripStats.tripsCount > 0
         ? [{ name: "Saved", value: tripStats.savedPercent }, { name: "Emitted", value: 100 - tripStats.savedPercent }]
         : [{ name: "Saved", value: 0 }, { name: "Emitted", value: 100 }];
+    const reviewedBusinesses = businesses.filter((business) => business.isVerified);
 
     return (
         <div className="flex flex-col w-full text-stone-800">
@@ -104,7 +101,7 @@ const Home = () => {
                             <span className="text-neonGreen">Live Smart.</span>
                         </h1>
                         <p className="text-lg text-stone-300 mb-10 max-w-xl mx-auto lg:mx-0">
-                            The ultimate platform connecting eco-conscious travelers with verified sustainable businesses and protected natural sites.
+                            A tourism project for exploring local business listings, route estimates, and manually maintained nature-site records.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-14">
                             <Link to="/planner" className="px-8 py-3.5 bg-neonGreen text-darkBg font-semibold rounded hover:bg-accentGreen transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] text-center">
@@ -116,16 +113,16 @@ const Home = () => {
                         </div>
                         <div className="flex flex-wrap justify-center lg:justify-start gap-8 border-t border-stone-800 pt-8">
                             <div>
-                                <h3 className="text-3xl font-display font-bold text-white">{platformStats.co2Saved > 0 ? platformStats.co2Saved + '+' : '12+'}</h3>
-                                <p className="text-stone-400 text-sm">CO2 Tonnes Saved</p>
+                                <h3 className="text-3xl font-display font-bold text-white">{loading ? '—' : platformStats.businessesCount}</h3>
+                                <p className="text-stone-400 text-sm">Business Listings</p>
                             </div>
                             <div>
-                                <h3 className="text-3xl font-display font-bold text-white">{platformStats.businessesCount > 0 ? platformStats.businessesCount + '+' : '15+'}</h3>
-                                <p className="text-stone-400 text-sm">Green Businesses</p>
+                                <h3 className="text-3xl font-display font-bold text-white">{loading ? '—' : platformStats.sitesCount}</h3>
+                                <p className="text-stone-400 text-sm">Nature Site Records</p>
                             </div>
                             <div>
-                                <h3 className="text-3xl font-display font-bold text-white">{platformStats.sitesCount > 0 ? platformStats.sitesCount + '+' : '8+'}</h3>
-                                <p className="text-stone-400 text-sm">Sites Protected</p>
+                                <h3 className="text-3xl font-display font-bold text-white">—</h3>
+                                <p className="text-stone-400 text-sm">Impact Not Measured</p>
                             </div>
                         </div>
                     </div>
@@ -187,12 +184,12 @@ const Home = () => {
                                 </div>
                                 <h3 className="text-xl font-semibold text-primaryGreen mb-3">Search Destination</h3>
                                 <p className="text-stone-500 leading-relaxed text-sm">
-                                    Enter your desired location and travel dates into our AI-powered smart planner. We analyze thousands of eco-friendly options instantly.
+                                    Enter a destination and explore route data and available business listings. Results depend on connected map services and saved records.
                                 </p>
                                 <div className="mt-6 pt-6 border-t border-stone-100">
                                     <div className="flex items-center gap-2 text-xs text-stone-400">
                                         <div className="w-2 h-2 rounded-full bg-neonGreen"></div>
-                                        <span>AI-Powered Recommendations</span>
+                                        <span>Map-Based Route Estimates</span>
                                     </div>
                                 </div>
                             </div>
@@ -211,12 +208,12 @@ const Home = () => {
                                 </div>
                                 <h3 className="text-xl font-semibold text-primaryGreen mb-3">Choose Green Options</h3>
                                 <p className="text-stone-500 leading-relaxed text-sm">
-                                    Select from our strictly verified eco-accommodations, sustainable transport, and local organic food partners.
+                                    Browse business submissions and their platform-admin review status. Reviews are not independent sustainability certification.
                                 </p>
                                 <div className="mt-6 pt-6 border-t border-stone-100">
                                     <div className="flex items-center gap-2 text-xs text-stone-400">
                                         <div className="w-2 h-2 rounded-full bg-neonGreen"></div>
-                                        <span>Verified Green Badge System</span>
+                                        <span>Platform Badge Review</span>
                                     </div>
                                 </div>
                             </div>
@@ -235,12 +232,12 @@ const Home = () => {
                                 </div>
                                 <h3 className="text-xl font-semibold text-primaryGreen mb-3">Track Your Impact</h3>
                                 <p className="text-stone-500 leading-relaxed text-sm">
-                                    Watch your carbon footprint shrink in real-time. Earn green reward points and offset remaining emissions instantly.
+                                    Review indicative carbon estimates from a planned route and selected listings. This prototype does not measure emissions in real time.
                                 </p>
                                 <div className="mt-6 pt-6 border-t border-stone-100">
                                     <div className="flex items-center gap-2 text-xs text-stone-400">
                                         <div className="w-2 h-2 rounded-full bg-neonGreen"></div>
-                                        <span>Real-Time Carbon Tracking</span>
+                                        <span>Indicative Carbon Estimates</span>
                                     </div>
                                 </div>
                             </div>
@@ -261,15 +258,15 @@ const Home = () => {
             <section className="py-24 bg-darkBg text-white border-t border-b border-neonGreen/20">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                     <div>
-                        <span className="text-neonGreen font-semibold tracking-wider text-sm mb-2 block uppercase">Live IoT Integration</span>
+                        <span className="text-neonGreen font-semibold tracking-wider text-sm mb-2 block uppercase">Manager-Maintained Site Records</span>
                         <h2 className="text-4xl font-display font-bold mb-6">Protect Ecosystems from Over-tourism</h2>
                         <p className="text-stone-300 text-lg leading-relaxed mb-8">
-                            Natural sites suffer when overwhelmed. We partner with conservation zones using live sensor data to display real-time capacity. Our smart routing directs tourists to alternative quiet spots when areas become too busy.
+                            Site managers can record visitor counts and capacity. This prototype has no connected IoT sensors, and suggested alternatives are other site records rather than live traffic guidance.
                         </p>
                         <ul className="space-y-4 mb-8">
-                            <li className="flex items-center gap-3"><CheckCircle size={20} className="text-neonGreen" /> Real-time capacity awareness</li>
+                            <li className="flex items-center gap-3"><CheckCircle size={20} className="text-neonGreen" /> Recorded capacity status</li>
                             <li className="flex items-center gap-3"><CheckCircle size={20} className="text-neonGreen" /> Alternative destination suggestions</li>
-                            <li className="flex items-center gap-3"><CheckCircle size={20} className="text-neonGreen" /> Direct revenue to conservation</li>
+                            <li className="flex items-center gap-3"><CheckCircle size={20} className="text-neonGreen" /> Site-manager updates</li>
                         </ul>
                     </div>
 
@@ -284,7 +281,7 @@ const Home = () => {
                             <div className="bg-deepCard border border-stone-800 rounded-xl p-6 relative z-10 shadow-2xl">
                                 <div className="flex border-b border-stone-800 pb-4 mb-4 items-center justify-between">
                                     <h3 className="text-xl font-semibold flex items-center gap-2"><MapPin size={22} className="text-neonGreen" /> No Sites Available</h3>
-                                    <span className="text-xs bg-stone-800 px-3 py-1 rounded">Live Data</span>
+                                    <span className="text-xs bg-stone-800 px-3 py-1 rounded">No Site Records</span>
                                 </div>
                                 <p className="text-stone-400 text-center py-8">Nature conservation sites coming soon!</p>
                             </div>
@@ -304,7 +301,7 @@ const Home = () => {
                                     <div key={site._id || idx} className="bg-deepCard border border-stone-800 rounded-xl p-6 relative z-10 shadow-2xl">
                                         <div className="flex border-b border-stone-800 pb-4 mb-4 items-center justify-between">
                                             <h3 className="text-xl font-semibold flex items-center gap-2"><MapPin size={22} className="text-neonGreen" /> {site.name}</h3>
-                                            <span className="text-xs bg-stone-800 px-3 py-1 rounded">Live Data</span>
+                                            <span className="text-xs bg-stone-800 px-3 py-1 rounded">Recorded Data</span>
                                         </div>
 
                                         <img src={imageUrl} alt={site.name} className="w-full h-48 object-cover rounded-md mb-6" />
@@ -351,16 +348,16 @@ const Home = () => {
                             </h2>
                             <div className="space-y-8">
                                 <p className="text-stone-500 text-lg leading-relaxed">
-                                    Travel always leaves a trace, but it doesn't have to be a burden. Through our verified carbon offset programs, you can neutralize your footprint by funding reforestation and renewable energy projects worldwide.
+                                    The project includes an illustrative catalog of reforestation and renewable-energy projects. It does not verify project claims, process payments, or issue carbon credits.
                                 </p>
                                 <div className="flex gap-4">
                                     <div className="w-12 h-12 bg-neonGreen/10 rounded-xl flex items-center justify-center flex-shrink-0 text-neonGreen">
                                         <Leaf size={24} />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold mb-2 text-darkBg">Verified Carbon Offsetting</h3>
+                                        <h3 className="text-xl font-bold mb-2 text-darkBg">Offset Ledger Demo</h3>
                                         <p className="text-stone-500 text-sm leading-relaxed mb-4">
-                                            Fund global projects from reforestation to renewable energy through our verified portfolio. Real impact, tracked in real-time.
+                                            Record a sample contribution in the application. No funds are transferred and no impact is independently measured.
                                         </p>
                                         <Link to="/offset" className="text-neonGreen font-bold text-sm hover:underline">Neutralize Your Footprint →</Link>
                                     </div>
@@ -388,8 +385,8 @@ const Home = () => {
             <section className="py-24 bg-lightBg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-display font-bold text-primaryGreen mb-4">Total Platform Impact</h2>
-                        <p className="text-stone-600">Every green choice scales into massive global impact.</p>
+                        <h2 className="text-4xl font-display font-bold text-primaryGreen mb-4">Trip Estimate Summary</h2>
+                        <p className="text-stone-600">Estimates are illustrative and depend on route distance and selected listing data.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-2xl shadow-sm border border-stone-100">
@@ -423,7 +420,7 @@ const Home = () => {
                             {tripStats.tripsCount === 0 ? (
                                 <div className="p-6 border-2 border-dashed border-stone-200 rounded-xl text-center">
                                     <h4 className="text-lg font-semibold text-stone-600 mb-2">No trips recorded yet</h4>
-                                    <p className="text-stone-500 text-sm mb-4">Participate in the trips by planning green routes to see your real-time carbon reduction average!</p>
+                                    <p className="text-stone-500 text-sm mb-4">Save a trip to view its indicative estimate here.</p>
                                     <Link to="/planner" className="inline-block px-5 py-2 bg-neonGreen text-darkBg text-sm font-semibold rounded hover:bg-accentGreen transition-colors">
                                         Plan a Trip
                                     </Link>
@@ -432,7 +429,7 @@ const Home = () => {
                                 <div>
                                     <div className="mb-6">
                                         <div className="flex justify-between text-sm mb-2 text-stone-600 font-medium">
-                                            <span>Standard Tourist Trip</span>
+                                            <span>Car Baseline Estimate</span>
                                             <span>{tripStats.stdEmissions} kg CO2</span>
                                         </div>
                                         <div className="w-full bg-stone-200 rounded-full h-3">
@@ -442,7 +439,7 @@ const Home = () => {
 
                                     <div>
                                         <div className="flex justify-between text-sm mb-2 font-semibold text-primaryGreen">
-                                            <span>CONNECT GREEN Trip</span>
+                                            <span>Planned Trip Estimate</span>
                                             <span>{tripStats.actEmissions} kg CO2</span>
                                         </div>
                                         <div className="w-full bg-stone-200 rounded-full h-3">
@@ -461,8 +458,8 @@ const Home = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-end mb-12">
                         <div>
-                            <h2 className="text-4xl font-display font-bold text-primaryGreen mb-4">Certified Eco-Partners</h2>
-                            <p className="text-stone-600">Discover hotels and services rigorously verified for sustainability.</p>
+                            <h2 className="text-4xl font-display font-bold text-primaryGreen mb-4">Business Listings</h2>
+                            <p className="text-stone-600">Explore businesses and their platform-admin review status. Badges are not independent certification.</p>
                         </div>
                         <Link to="/businesses" className="hidden sm:inline-block px-6 py-2.5 text-primaryGreen border border-primaryGreen font-semibold rounded hover:bg-lightBg transition-colors">
                             Browse All
@@ -475,12 +472,12 @@ const Home = () => {
                                 <div className="w-8 h-8 border-2 border-neonGreen border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                                 <p className="text-stone-500">Loading eco-partners...</p>
                             </div>
-                        ) : businesses.length === 0 ? (
+                        ) : reviewedBusinesses.length === 0 ? (
                             <div className="col-span-3 text-center py-12 border-2 border-dashed border-stone-200 rounded-xl">
                                 <p className="text-stone-500">No eco-partners found yet. Check back soon!</p>
                             </div>
                         ) : (
-                            businesses.slice(0, 6).map((biz, idx) => {
+                            reviewedBusinesses.slice(0, 6).map((biz, idx) => {
                                 const badgeColors = {
                                     'platinum': '#4ADE80',
                                     'gold': '#FFD700',
@@ -502,7 +499,7 @@ const Home = () => {
                                             <p className="text-sm font-medium text-stone-500 mb-4">{biz.category}</p>
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-xs px-2.5 py-1 rounded bg-stone-100 font-bold capitalize`} style={{ color: color, border: `1px solid ${color}` }}>
-                                                    {biz.badgeStatus || 'Green'} Certified
+                                                    {biz.badgeStatus || 'Reviewed'} · Platform reviewed
                                                 </span>
                                             </div>
                                         </div>
@@ -519,21 +516,16 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* TESTIMONIALS */}
+            {/* EXAMPLE WORKFLOWS */}
             <section className="py-24 bg-lightBg border-t border-stone-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h2 className="text-4xl font-display font-bold text-center text-primaryGreen mb-16">Stories from the Green Community</h2>
+                    <h2 className="text-4xl font-display font-bold text-center text-primaryGreen mb-4">Example Workflows</h2>
+                    <p className="text-center text-stone-500 mb-16">Illustrative use cases, not customer testimonials.</p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {testimonials.map((t, i) => (
-                            <div key={i} className="bg-white p-8 rounded-xl border-t-2 border-neonGreen shadow-sm">
-                                <div className="flex gap-1 text-neonGreen mb-4">
-                                    {[...Array(t.rate)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                                </div>
-                                <p className="text-stone-600 mb-6 italic leading-relaxed">"{t.text}"</p>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-deepCard text-white rounded-full flex items-center justify-center font-bold font-display">{t.name.charAt(0)}</div>
-                                    <span className="font-semibold text-primaryGreen">{t.name}</span>
-                                </div>
+                        {workflows.map((workflow) => (
+                            <div key={workflow.title} className="bg-white p-8 rounded-xl border-t-2 border-neonGreen shadow-sm">
+                                <h3 className="text-xl font-semibold text-primaryGreen mb-3">{workflow.title}</h3>
+                                <p className="text-stone-600 leading-relaxed">{workflow.detail}</p>
                             </div>
                         ))}
                     </div>
@@ -545,7 +537,7 @@ const Home = () => {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.2)_0%,transparent_50%)]"></div>
                 <div className="relative z-10 max-w-2xl mx-auto px-4">
                     <h2 className="text-4xl sm:text-5xl font-display font-bold mb-6 tracking-tight">Start Your Green Journey Today</h2>
-                    <p className="text-stone-300 text-lg mb-10">Join thousands of travelers making a real difference to global ecosystems without compromising on adventure.</p>
+                    <p className="text-stone-300 text-lg mb-10">Create an account to save trips and explore the prototype workflows.</p>
                     <Link to="/register" className="inline-block px-10 py-4 bg-neonGreen text-darkBg text-lg font-bold rounded shadow-[0_0_25px_rgba(34,197,94,0.4)] hover:bg-accentGreen hover:scale-105 transition-all">
                         Create Free Account
                     </Link>

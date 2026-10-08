@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axios';
+import api from '../api/axios';
+import { AuthContext } from '../context/AuthContext';
 import { CheckCircle, Users, TreePine, ShieldCheck, AlertCircle, MapPin, Clock, Award } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -22,6 +23,7 @@ const SiteManagerApply = () => {
     const [progress, setProgress] = useState(0);
 
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -39,14 +41,11 @@ const SiteManagerApply = () => {
         }
 
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${userInfo.token}`
-                }
-            };
-
-            await axios.post('/site-requests', formData, config);
+            if (!user) {
+                setError('Please sign in before submitting an application.');
+                return;
+            }
+            await api.post('/site-requests', formData);
             setSuccess(true);
             toast.success('Application submitted successfully!');
             setTimeout(() => navigate('/dashboard'), 3000);

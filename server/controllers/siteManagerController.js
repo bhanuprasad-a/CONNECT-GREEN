@@ -1,5 +1,6 @@
 const SiteManagerRequest = require('../models/SiteManagerRequest');
 const User = require('../models/User');
+const { respondWithApiError } = require('../utils/apiError');
 
 const applySiteManager = async (req, res) => {
     try {
@@ -31,26 +32,42 @@ const applySiteManager = async (req, res) => {
         res.status(201).json(newRequest);
 
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'siteManager.apply');
     }
 };
 
 const getRequests = async (req, res) => {
     try {
-        const requests = await SiteManagerRequest.find(req.query).populate('user', 'name email role');
+        const filter = {};
+        if (req.query.status !== undefined) {
+            if (!['pending', 'approved', 'rejected'].includes(req.query.status)) {
+                return res.status(400).json({ message: 'Invalid application status' });
+            }
+            filter.status = req.query.status;
+        }
+        const requests = await SiteManagerRequest.find(filter)
+            .populate('user', 'name email role')
+            .sort({ createdAt: -1 })
+            .lean();
         res.json(requests);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'siteManager.listRequests');
     }
 };
 
 const updateRequestStatus = async (req, res) => {
     try {
         const { status, rejectionReason } = req.body;
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid application status' });
+        }
         const managerRequest = await SiteManagerRequest.findById(req.params.id).populate('user');
 
         if (!managerRequest) {
             return res.status(404).json({ message: 'Application request not found' });
+        }
+        if (managerRequest.status !== 'pending') {
+            return res.status(409).json({ message: 'Only pending applications can be reviewed' });
         }
 
         managerRequest.status = status;
@@ -68,7 +85,7 @@ const updateRequestStatus = async (req, res) => {
         res.json(updatedRequest);
 
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'siteManager.updateRequest');
     }
 }
 

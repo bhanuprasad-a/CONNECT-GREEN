@@ -1,13 +1,23 @@
 const NatureSite = require('../models/NatureSite');
+const { respondWithApiError } = require('../utils/apiError');
 
 const getSites = async (req, res) => {
     try {
-        const sites = await NatureSite.find().populate('manager', 'name email');
+        const filter = {};
+        const { manager, status } = req.query;
+        if (manager) filter.manager = manager;
+        if (status) filter.status = status;
+
+        const sites = await NatureSite.find(filter)
+            .populate('manager', 'name')
+            .sort({ createdAt: -1 })
+            .lean();
         res.json(sites);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'site.list');
     }
 };
+
 
 const createSite = async (req, res) => {
     try {
@@ -19,13 +29,16 @@ const createSite = async (req, res) => {
         const createdSite = await site.save();
         res.status(201).json(createdSite);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'site.create');
     }
 };
 
 const updateVisitorCount = async (req, res) => {
     try {
         const { currentVisitors } = req.body;
+        if (!Number.isInteger(currentVisitors) || currentVisitors < 0) {
+            return res.status(400).json({ message: 'Visitor count must be a non-negative integer' });
+        }
         const site = await NatureSite.findById(req.params.id);
 
         if (!site) {
@@ -42,7 +55,7 @@ const updateVisitorCount = async (req, res) => {
 
         res.json(updatedSite);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        respondWithApiError(res, error, 'site.updateVisitors');
     }
 };
 

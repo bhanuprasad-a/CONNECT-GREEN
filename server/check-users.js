@@ -1,29 +1,13 @@
-// Debug script to check users in database
 const mongoose = require('mongoose');
 require('dotenv').config();
 
 const MONGO_URI = process.env.MONGO_URI;
 
 async function checkUsers() {
+    let exitCode = 0;
     try {
         await mongoose.connect(MONGO_URI);
-        console.log('Connected to MongoDB\n');
-        
-        // Get all users
         const User = require('./models/User');
-        const users = await User.find({}, 'name email role');
-        
-        console.log('=== USERS IN DATABASE ===');
-        console.log(`Total users: ${users.length}\n`);
-        
-        users.forEach(user => {
-            console.log(`Name: ${user.name}`);
-            console.log(`Email: ${user.email}`);
-            console.log(`Role: ${user.role}`);
-            console.log('---');
-        });
-        
-        // Check if demo users exist with correct roles
         const expectedRoles = {
             'admin@connectgreen.com': 'admin',
             'business@connectgreen.com': 'business',
@@ -31,32 +15,33 @@ async function checkUsers() {
             'tourist@connectgreen.com': 'tourist'
         };
         
-        console.log('\n=== VERIFICATION ===');
+        const users = await User.find({ email: { $in: Object.keys(expectedRoles) } }, 'email role').lean();
         let allCorrect = true;
         for (const [email, expectedRole] of Object.entries(expectedRoles)) {
             const user = users.find(u => u.email === email);
             if (!user) {
-                console.log(`❌ ${email}: NOT FOUND`);
+                console.log('A seeded demo account is missing.');
                 allCorrect = false;
             } else if (user.role !== expectedRole) {
-                console.log(`❌ ${email}: WRONG ROLE (expected ${expectedRole}, got ${user.role})`);
+                console.log('A seeded demo account has an unexpected role.');
                 allCorrect = false;
-            } else {
-                console.log(`✅ ${email}: ${user.role}`);
             }
         }
         
         if (allCorrect) {
-            console.log('\n✅ All demo users have correct roles!');
+            console.log('Seeded demo account roles are correct.');
         } else {
-            console.log('\n⚠️  Some users have incorrect roles. Run seedAll.js to fix.');
+            console.log('Seeded demo accounts are missing or have incorrect roles.');
+            exitCode = 1;
         }
-        
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error(`User check failed (${error.name || 'UnknownError'}).`);
+        exitCode = 1;
     } finally {
-        await mongoose.disconnect();
-        process.exit(0);
+        if (mongoose.connection.readyState) {
+            await mongoose.disconnect();
+        }
+        process.exitCode = exitCode;
     }
 }
 

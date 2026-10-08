@@ -1,12 +1,12 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import { Leaf } from 'lucide-react';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
-import api from '../api/axios'; // Make sure the path is correct
+import api from '../api/axios';
+
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -30,7 +30,6 @@ const Register = () => {
             toast.success('Account created successfully!');
             navigate('/dashboard');
         } catch (error) {
-            console.error("Registration Error:", error.response?.data || error.message);
             const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
             toast.error(`Error: ${errorMsg}`);
         }
@@ -83,15 +82,15 @@ const Register = () => {
                             type="password"
                             name="password"
                             required
-                            minLength="6"
+                            minLength="12"
                             value={password}
                             onChange={onChange}
                         />
 
                         <div>
                             <label className="block text-sm font-medium text-stone-300 mb-2">I am signing up as a:</label>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                {['tourist', 'business', 'siteManager', 'admin'].map((r) => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {['tourist', 'business'].map((r) => (
                                     <button
                                         key={r}
                                         type="button"

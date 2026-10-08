@@ -4,9 +4,14 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DESTRUCTIVE_SEED !== 'true' || !process.env.MONGO_URI) {
+    console.error('Offset seeding requires NODE_ENV=development, ALLOW_DESTRUCTIVE_SEED=true, and MONGO_URI.');
+    process.exit(1);
+}
+
 const seedOffsets = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/connect_green');
+        await mongoose.connect(process.env.MONGO_URI);
 
         // Clear existing
         await CarbonOffset.deleteMany();

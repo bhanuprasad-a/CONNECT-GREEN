@@ -4,6 +4,8 @@
 
 **TECH STACK DOCUMENT**
 
+> Historical planning notes. Some architecture and feature descriptions below do not match the current implementation. Use `README.md` for the verified stack, setup, security requirements, and feature limitations.
+
 **Technology: MERN Stack (MongoDB • Express.js • React.js • Node.js)**
 
 College Project \| Green Technologies Domain \| 2026
@@ -373,7 +375,7 @@ Follow these steps in order to get CONNECT GREEN running on your computer.
 
 18. Install dev tool: npm install \--save-dev nodemon
 
-19. Create .env file in server folder and add: MONGO_URI=your_mongodb_connection_string, JWT_SECRET=any_secret_word, PORT=5000
+19. Create `server/.env` from `server/.env.example`; configure `MONGO_URI` and generate a random `JWT_SECRET` of at least 32 bytes using Node's `crypto.randomBytes`.
 
 20. Create server.js and start building routes
 

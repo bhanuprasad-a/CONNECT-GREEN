@@ -20,6 +20,7 @@ const carbonOffsetSchema = new mongoose.Schema({
     },
     costPerKg: {
         type: Number,
+        min: [0.01, 'Cost per kg must be greater than zero'],
         required: [true, 'Please add cost per kg of CO2 offset']
     },
     image: {

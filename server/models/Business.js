@@ -101,4 +101,13 @@ const businessSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// Indexes for high-speed queries and filtering
+businessSchema.index({ owner: 1 });
+businessSchema.index({ category: 1, badgeStatus: 1, isVerified: 1 });
+businessSchema.index({ badgeStatus: 1 });
+businessSchema.index({ isVerified: 1, createdAt: -1 });
+businessSchema.index({ createdAt: -1 });
+businessSchema.index({ geoLocation: '2dsphere' });
+businessSchema.index({ name: 'text', location: 'text', description: 'text' });
+
 module.exports = mongoose.model('Business', businessSchema);

@@ -151,7 +151,7 @@ const RecyclingLocator = () => {
                     setAllCenters(prev => [...apiCenters, ...SEED_CENTERS]);
                 }
             })
-            .catch(() => { /* use seed data */ });
+            .catch(() => toast.error('API unavailable. Showing sample recycling locations.'));
     }, []);
 
     /* ── Filter Logic ── */
@@ -237,7 +237,7 @@ const RecyclingLocator = () => {
                         </div>
                         <div>
                             <h1 className="text-base font-bold text-white">Recycling Locator</h1>
-                            <p className="text-[11px] text-stone-500">Find drop-off centers near you</p>
+                            <p className="text-[11px] text-stone-500">Sample directory; verify details before travel</p>
                         </div>
                     </div>
 
@@ -328,7 +328,7 @@ const RecyclingLocator = () => {
                     <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                         <span className="text-xs text-stone-400 font-semibold flex items-center gap-1.5">
                             <Recycle size={12} className="text-neonGreen" />
-                            {filteredCenters.length} Centers Found
+                            {filteredCenters.length} Sample Centers
                             {userLocation && <span className="text-stone-600">· sorted by distance</span>}
                         </span>
                         {!userLocation && (

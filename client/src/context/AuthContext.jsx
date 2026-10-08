@@ -4,22 +4,28 @@ import api from '../api/axios';
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(() => {
+        try {
+            const cached = localStorage.getItem('user');
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    });
+    // If we have cached user, don't block the UI with initial loading state
+    const [loading, setLoading] = useState(() => !localStorage.getItem('user') && !!localStorage.getItem('token'));
 
-    // Initial load: check for token in localStorage
+    // Initial load: validate token and refresh profile in background
     useEffect(() => {
         const checkLoggedIn = async () => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    // Set default api header
                     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                    // Attempt to fetch current user data using token
                     const res = await api.get('/auth/me');
                     setUser(res.data);
-                } catch (error) {
-                    console.error("Token invalid or expired", error);
+                    localStorage.setItem('user', JSON.stringify(res.data));
+                } catch {
                     logout();
                 }
             }
@@ -30,14 +36,15 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = (userData, token) => {
-        console.log('AuthContext login - userData:', userData);
         localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(userData);
     };
 
     const logout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
         delete api.defaults.headers.common['Authorization'];
         setUser(null);
     };

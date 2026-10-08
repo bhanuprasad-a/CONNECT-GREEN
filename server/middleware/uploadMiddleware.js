@@ -19,7 +19,18 @@ const storage = new CloudinaryStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    fileFilter: (req, file, callback) => {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+            const error = new Error('Only JPEG, PNG, and WebP images are allowed.');
+            error.status = 400;
+            return callback(error);
+        }
+        callback(null, true);
+    },
+});
 
 module.exports = upload;
 

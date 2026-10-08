@@ -12,6 +12,7 @@ const BusinessDetails = () => {
     const [business, setBusiness] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     // Rating Form State
     const [rating, setRating] = useState(5);
@@ -24,26 +25,15 @@ const BusinessDetails = () => {
                 const bizRes = await api.get(`/businesses/${id}`);
                 setBusiness(bizRes.data);
 
-                // Fetch reviews
-                const revRes = await api.get(`/reviews/${id}`);
-                setReviews(revRes.data);
-            } catch (error) {
-                // Mock data fallback for demonstration if DB is empty
-                setBusiness({
-                    _id: id,
-                    name: 'EcoLodge Visionary',
-                    category: 'hotel',
-                    location: 'Costa Rica',
-                    description: 'A 100% off-grid luxury eco-lodge deep in the rainforest. We utilize solar energy, rainwater harvesting, and support local indigenous communities through fair trade tourism.',
-                    badgeStatus: 'platinum',
-                    avgRating: 4.9,
-                    isVerified: true,
-                    image: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=1000'
-                });
-                setReviews([
-                    { _id: '1', user: { name: 'Sarah Jenkins' }, rating: 5, comment: 'Absolutely breathtaking. The zero-waste restaurant was incredible.', createdAt: '2026-02-14T00:00:00Z' },
-                    { _id: '2', user: { name: 'David Cho' }, rating: 4, comment: 'Great location, very strict recycling protocols which was nice to see.', createdAt: '2026-01-22T00:00:00Z' }
-                ]);
+                try {
+                    const revRes = await api.get(`/reviews/${id}`);
+                    setReviews(Array.isArray(revRes.data) ? revRes.data : []);
+                } catch {
+                    setReviews([]);
+                }
+            } catch {
+                setBusiness(null);
+                setLoadError(true);
             } finally {
                 setLoading(false);
             }
@@ -55,7 +45,7 @@ const BusinessDetails = () => {
     const submitReview = async (e) => {
         e.preventDefault();
         try {
-            const res = await api.post('/reviews', {
+            await api.post('/reviews', {
                 businessId: id,
                 rating,
                 comment
@@ -80,7 +70,7 @@ const BusinessDetails = () => {
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center text-neonGreen pt-32">Loading Details...</div>;
-    if (!business) return <div className="min-h-screen text-center text-white pt-32">Business not found.</div>;
+    if (!business) return <div className="min-h-screen text-center text-white pt-32">{loadError ? 'Business details are unavailable.' : 'Business not found.'}</div>;
 
     const badgeColor = getBadgeColor(business.badgeStatus);
 
@@ -102,7 +92,7 @@ const BusinessDetails = () => {
                     <div className="absolute top-6 right-6 z-20 bg-darkBg/90 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2 border shadow-[0_0_30px_rgba(255,255,255,0.1)]" style={{ borderColor: badgeColor }}>
                         <BadgeCheck fill={badgeColor} className="text-darkBg" size={24} />
                         <span className="font-bold uppercase tracking-widest text-sm" style={{ color: badgeColor }}>
-                            {business.badgeStatus} Certified
+                            Platform Reviewed: {business.badgeStatus}
                         </span>
                     </div>
                 )}
@@ -118,9 +108,9 @@ const BusinessDetails = () => {
                     </div>
 
                     <div className="mt-6 md:mt-0 flex gap-4">
-                        <button className="px-6 py-3 bg-neonGreen text-darkBg font-bold rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-accentGreen transition-colors flex items-center gap-2">
-                            <Leaf size={18} /> Add to Trip Planner
-                        </button>
+                        <Link to="/planner" className="px-6 py-3 bg-neonGreen text-darkBg font-bold rounded shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-accentGreen transition-colors flex items-center gap-2">
+                            <Leaf size={18} /> Open Trip Planner
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -150,7 +140,7 @@ const BusinessDetails = () => {
                         {/* Write Review Form */}
                         {user && user.role === 'tourist' ? (
                             <form onSubmit={submitReview} className="mb-8 p-6 border border-stone-800 rounded-xl bg-darkBg shadow-inner">
-                                <h3 className="font-semibold text-white mb-4">Leave a verified review</h3>
+                                <h3 className="font-semibold text-white mb-4">Share a review</h3>
                                 <div className="flex gap-2 mb-4">
                                     {[1, 2, 3, 4, 5].map(num => (
                                         <button
@@ -186,7 +176,7 @@ const BusinessDetails = () => {
                         {/* Review List */}
                         <div className="space-y-4">
                             {reviews.length === 0 ? (
-                                <p className="text-stone-500 italic">No reviews yet. Be the first to verify their green practices!</p>
+                                <p className="text-stone-500 italic">No reviews yet. Share your experience with this listing.</p>
                             ) : (
                                 reviews.map((rev, idx) => (
                                     <div key={idx} className="p-6 bg-deepCard border border-stone-800 rounded-xl">
@@ -224,18 +214,12 @@ const BusinessDetails = () => {
 
                             <div className="space-y-5">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-stone-400 text-sm">Est. Carbon Offset</span>
-                                    <span className="text-neonGreen font-bold font-display text-xl">
-                                        {business.badgeStatus === 'platinum' ? '100%' : business.badgeStatus === 'gold' ? '80%' : '50%'}
-                                    </span>
+                                    <span className="text-stone-400 text-sm">Platform Badge</span>
+                                    <span className="text-neonGreen font-bold font-display text-xl capitalize">{business.badgeStatus || 'Unreviewed'}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-stone-400 text-sm">Green Energy Use</span>
-                                    <span className="text-white font-bold font-display text-xl">Verified</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-stone-400 text-sm">Local Economy Return</span>
-                                    <span className="text-white font-bold font-display text-xl">High</span>
+                                    <span className="text-stone-400 text-sm">Renewable Energy (submitted)</span>
+                                    <span className="text-white font-bold font-display text-xl">{business.greenCriteria?.renewableEnergyPercent ?? '—'}{business.greenCriteria?.renewableEnergyPercent != null ? '%' : ''}</span>
                                 </div>
                             </div>
                         </div>
@@ -245,7 +229,7 @@ const BusinessDetails = () => {
                                 <Leaf size={16} /> Connect Green Tip
                             </h4>
                             <p className="text-sm text-stone-300 leading-relaxed">
-                                Spending your funds at {business.badgeStatus} verified locations funnels resources directly to local conservation efforts and cuts out exploitative middlemen.
+                                A platform badge reflects this application's review workflow. It is not an independent sustainability certification or a guarantee of environmental outcomes.
                             </p>
                         </div>
                     </div>

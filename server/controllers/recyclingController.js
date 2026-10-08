@@ -1,4 +1,5 @@
 const RecyclingCenter = require('../models/RecyclingCenter');
+const { respondWithApiError } = require('../utils/apiError');
 
 exports.getCenters = async (req, res) => {
     try {
@@ -21,10 +22,10 @@ exports.getCenters = async (req, res) => {
             query.acceptedWaste = { $in: types };
         }
 
-        const centers = await RecyclingCenter.find(query);
+        const centers = await RecyclingCenter.find(query).lean();
         res.status(200).json(centers);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching recycling centers", error: error.message });
+        respondWithApiError(res, error, 'recycling.list');
     }
 };
 
@@ -34,6 +35,6 @@ exports.createCenter = async (req, res) => {
         await center.save();
         res.status(201).json(center);
     } catch (error) {
-        res.status(400).json({ message: "Error creating center", error: error.message });
+        respondWithApiError(res, error, 'recycling.create');
     }
 };

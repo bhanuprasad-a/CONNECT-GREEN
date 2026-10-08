@@ -59,26 +59,13 @@ const fetchRealEVStations = async (coords, maxStations = 8) => {
                         sockets: el.tags?.['capacity'] || el.tags?.['socket:type2'] || '?',
                         real: true,
                     });
-                } else {
-                    // Fallback: place one at sample point
-                    stations.push({
-                        id: `ev-fallback-${lat}-${lng}`,
-                        lat, lng,
-                        name: 'EV Charging Point',
-                        sockets: '2',
-                        real: false,
-                    });
                 }
             } catch {
-                stations.push({
-                    id: `ev-fb-${lat}`,
-                    lat, lng, name: 'EV Charging Point', sockets: '2', real: false,
-                });
+                continue;
             }
         }
         return stations;
-    } catch (e) {
-        console.warn('EV station fetch error:', e);
+    } catch {
         return [];
     }
 };
@@ -183,7 +170,12 @@ const TripPlanner = () => {
     const mapRef = useRef(null);
 
     useEffect(() => {
-        api.get('/businesses').then(r => r.data && setBusinesses(r.data)).catch(() => { });
+        api.get('/businesses')
+            .then((response) => {
+                const records = Array.isArray(response.data) ? response.data : [];
+                setBusinesses(records.filter((business) => business.isVerified));
+            })
+            .catch(() => setBusinesses([]));
         api.get('/sites').then(r => r.data && setNatureSites(r.data)).catch(() => { });
     }, []);
 
@@ -324,8 +316,7 @@ const TripPlanner = () => {
                 status: 'planned'
             });
             toast.success('🌱 Itinerary saved!', { id: 'save' });
-        } catch (error) {
-            console.error('Trip save error:', error);
+        } catch {
             toast.error('Failed to save itinerary.', { id: 'save' });
         }
     };
@@ -477,7 +468,7 @@ const TripPlanner = () => {
                             <div>
                                 <div className="flex items-center justify-between mb-3">
                                     <label className="text-[10px] text-stone-500 uppercase tracking-widest font-bold">Eco Businesses</label>
-                                    <span className="text-[10px] bg-neonGreen/15 text-neonGreen px-2 py-0.5 rounded-full font-bold">{businesses.length} verified</span>
+                                    <span className="text-[10px] bg-neonGreen/15 text-neonGreen px-2 py-0.5 rounded-full font-bold">{businesses.length} platform-reviewed</span>
                                 </div>
 
                                 {businesses.length === 0 ? (
@@ -497,12 +488,12 @@ const TripPlanner = () => {
                                                         ${selected ? 'bg-neonGreen/10 border-neonGreen/40' : 'bg-white/3 border-white/6 hover:border-white/15 hover:bg-white/5'}`}
                                                 >
                                                     <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${selected ? 'bg-neonGreen text-[#0d1117]' : 'bg-white/8 text-stone-400'}`}>
-                                                        {biz.type === 'hotel' ? <Hotel size={15} /> : biz.type === 'transport' ? <Bus size={15} /> : <Utensils size={15} />}
+                                                        {biz.category === 'hotel' ? <Hotel size={15} /> : biz.category === 'transport' ? <Bus size={15} /> : <Utensils size={15} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-semibold text-white truncate">{biz.name}</p>
                                                         <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
-                                                            <BadgeCheck size={10} className="text-neonGreen" /> {biz.badge || 'Green'} Certified
+                                                            <BadgeCheck size={10} className="text-neonGreen" /> {biz.badgeStatus || 'Reviewed'} · Platform review
                                                             {biz.co2Save && <span className="text-neonGreen ml-1">· −{biz.co2Save}kg CO₂</span>}
                                                         </p>
                                                     </div>
@@ -548,7 +539,7 @@ const TripPlanner = () => {
                                             ${netCO2 === 0 ? 'border-neonGreen shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'border-neonGreen/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]'}`}>
                                             {netCO2 === 0 && (
                                                 <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-neonGreen text-[#0d1117] text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap shadow-lg">
-                                                    🌿 CARBON NEUTRAL
+                                                    🌿 ZERO ESTIMATED EMISSIONS
                                                 </span>
                                             )}
                                             <span className="text-3xl font-bold text-white">{Math.floor(netCO2)}</span>
@@ -747,7 +738,7 @@ const TripPlanner = () => {
                                         emoji: '🏢',
                                         rows: [
                                             { label: 'Type', value: biz.type || 'Business' },
-                                            { label: 'Badge', value: `${biz.badge || 'Green'} Certified ✅` },
+                                            { label: 'Platform review', value: biz.badgeStatus || 'Not reviewed' },
                                             { label: 'CO₂ Save', value: `−${biz.co2Save || 0} kg per visit` },
                                         ]
                                     });

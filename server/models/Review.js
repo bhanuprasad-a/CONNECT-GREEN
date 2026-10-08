@@ -28,5 +28,7 @@ const reviewSchema = new mongoose.Schema({
 
 // Prevent user from submitting more than one review per business
 reviewSchema.index({ business: 1, user: 1 }, { unique: true });
+reviewSchema.index({ business: 1, createdAt: -1 });
+reviewSchema.index({ user: 1 });
 
 module.exports = mongoose.model('Review', reviewSchema);

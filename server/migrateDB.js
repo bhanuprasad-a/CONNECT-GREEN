@@ -10,7 +10,12 @@
 require('dotenv').config();
 const { MongoClient } = require('mongodb');
 
-const RAW_URI = process.env.MONGO_URI.replace(/^"|"$/g, ''); // strip wrapping quotes
+if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_SOURCE_DROP !== 'true' || !process.env.MONGO_URI) {
+    console.error('Migration requires NODE_ENV=development, ALLOW_SOURCE_DROP=true, and MONGO_URI.');
+    process.exit(1);
+}
+
+const RAW_URI = process.env.MONGO_URI.replace(/^"|"$/g, '');
 
 // Switch to admin db so we can access both databases at cluster level
 const BASE_URI = RAW_URI.replace(/\/connect_green\?/, '/admin?');

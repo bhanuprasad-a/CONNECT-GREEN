@@ -2,8 +2,7 @@
  * CONNECT GREEN — Master Seed Script
  * Matches the EXACT Mongoose schemas in /models/
  *
- * Run from: c:\Users\Arya\CONNECT_GREEN\server
- *   node seedAll.js
+ * Run only against a development database with DEMO_PASSWORD configured.
  */
 
 require('dotenv').config();
@@ -17,8 +16,12 @@ const User = require('./models/User');
 const bcrypt = require('bcryptjs');
 
 const MONGO_URI = process.env.MONGO_URI;
-if (!MONGO_URI) {
-    console.error('❌ MONGO_URI not found in .env — aborting');
+if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DESTRUCTIVE_SEED !== 'true') {
+    console.error('Seeding requires NODE_ENV=development and ALLOW_DESTRUCTIVE_SEED=true.');
+    process.exit(1);
+}
+if (!MONGO_URI || !process.env.DEMO_PASSWORD || process.env.DEMO_PASSWORD.length < 12) {
+    console.error('MONGO_URI and a DEMO_PASSWORD of at least 12 characters must be configured.');
     process.exit(1);
 }
 
@@ -29,25 +32,25 @@ const DEMO_USERS = [
     { 
         name: 'Demo Admin', 
         email: 'admin@connectgreen.com', 
-        password: 'Connect@123', 
+        password: process.env.DEMO_PASSWORD,
         role: 'admin' 
     },
     { 
         name: 'Demo Business', 
         email: 'business@connectgreen.com', 
-        password: 'Connect@123', 
+        password: process.env.DEMO_PASSWORD,
         role: 'business' 
     },
     { 
         name: 'Demo Site Manager', 
         email: 'sitemanager@connectgreen.com', 
-        password: 'Connect@123', 
+        password: process.env.DEMO_PASSWORD,
         role: 'siteManager' 
     },
     { 
         name: 'Demo Tourist', 
         email: 'tourist@connectgreen.com', 
-        password: 'Connect@123', 
+        password: process.env.DEMO_PASSWORD,
         role: 'tourist' 
     }
 ];
@@ -150,7 +153,7 @@ const seed = async () => {
                 ...demoUser, 
                 password: hashedPassword 
             });
-            console.log(`✅ Created demo ${demoUser.role}: ${demoUser.email} / ${demoUser.password}`);
+            console.log(`✅ Created demo ${demoUser.role}: ${demoUser.email}`);
             createdUsers.push(existingUser);
         }
         
@@ -218,11 +221,7 @@ const seed = async () => {
 
         console.log('\n🌿 ─────────────────────────────────────────');
         console.log('   All data seeded successfully!');
-        console.log('   Demo login credentials:');
-        console.log('   • Admin: admin@connectgreen.com / Connect@123');
-        console.log('   • Business: business@connectgreen.com / Connect@123');
-        console.log('   • Site Manager: sitemanager@connectgreen.com / Connect@123');
-        console.log('   • Tourist: tourist@connectgreen.com / Connect@123');
+        console.log('   Demo account emails are listed above; use DEMO_PASSWORD to sign in.');
         console.log('─────────────────────────────────────────────\n');
         process.exit(0);
     } catch (err) {
