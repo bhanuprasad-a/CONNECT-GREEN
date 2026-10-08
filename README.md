@@ -1,5 +1,9 @@
 # Connect Green
 
+A full-stack sustainable travel platform built with React, Vite, Node.js, Express, and MongoDB.
+
+[Live Demo](https://connectgreen.onrender.com/)
+
 ## Overview
 
 Connect Green is an educational sustainable-tourism web application. It brings together trip planning, business listings, nature-site capacity records, recycling locations, user accounts, and a demonstration carbon-offset ledger.
